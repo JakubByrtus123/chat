@@ -1,4 +1,4 @@
-const socket = io();
+const socket = io('192.168.21.86:3000');
  
 const messages = document.getElementById("messages");
 const nameInput = document.getElementById("name");
