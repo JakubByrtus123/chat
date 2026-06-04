@@ -146,7 +146,7 @@ socket.on("chat message", (data) => {
 
   if (data.name === currentUserName) {
     messageElement.classList.add("my-message");
-    messageElement.innerHTML = `<strong>Vy:</strong><br>${data.text}<span class="timestamp">${msgTime}</span>`;
+    messageElement.innerHTML = `<strong>You:</strong><br>${data.text}<span class="timestamp">${msgTime}</span>`;
   } else {
     messageElement.innerHTML = `<strong>${data.name}:</strong><br>${data.text}<span class="timestamp">${msgTime}</span>`;
   }

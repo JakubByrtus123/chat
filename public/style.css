@@ -329,7 +329,7 @@ h1 {
 
 /* Tvoje vlastní zpráva (vpravo) */
 .message.my-message {
-    background: #2563eb; 
+    background: #013097; 
     color: white;
     align-self: flex-end;  
     border-radius: 16px 16px 4px 16px;
