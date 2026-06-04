@@ -5,16 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Class Chat</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
 </head>
 <body>
+    <button id="dark-mode-toggle" class="dark-mode-btn" type="button">🌙</button>
+
     <main class="chat-container">
-        <h1>Class chat</h1>
+        <h1>Fejsbuk</h1>
         
-        <section id="messages" class="messages"></section>
+        <div id="messages" class="messages"></div>
+
+        <div id="typing-indicator" class="typing-indicator"></div>
+        
         <section class="input-area">
             <input id="name" type="text" placeholder="Your name">
             <input id="message" type="text" placeholder="Type a message">
+            <button id="emoji-trigger" type="button">🥰</button> 
             <button id="send">Send</button>
+            
+            <div id="picker-container" style="display: none; position: absolute; bottom: 80px; right: 20px; z-index: 100;"></div>
         </section>
     </main>
 

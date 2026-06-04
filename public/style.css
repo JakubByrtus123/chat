@@ -2,78 +2,428 @@
     box-sizing: border-box;
 }
 
+/* Výchozí nastavení barev (Light Mode) */
+:root {
+    --bg-body: #e5edf7;
+    --bg-container: white;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --bg-messages: #f8fafc;
+    --border-messages: #f1f5f9;
+    --bg-msg-other: #f1f5f9;
+    --text-msg-other: #334155;
+    --bg-input: #fff;
+}
+
+/* Nastavení barev pro Dark Mode */
+.dark-theme {* {
+    box-sizing: border-box;
+}
+
+/* Výchozí nastavení barev (Light Mode) */
+:root {
+    --bg-body: #e5edf7;
+    --bg-container: white;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --bg-messages: #f8fafc;
+    --border-messages: #f1f5f9;
+    --bg-msg-other: #f1f5f9;
+    --text-msg-other: #334155;
+    --bg-input: #fff;
+}
+
+/* Nastavení barev pro Dark Mode */
+.dark-theme {
+    --bg-body: #0f172a;
+    --bg-container: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --bg-messages: #0f172a;
+    --border-messages: #334155;
+    --bg-msg-other: #334155;
+    --text-msg-other: #f1f5f9;
+    --bg-input: #1e293b;
+}
+
 body {
     margin: 0;
     min-height: 100vh;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #e5edf7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-body);
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.3s ease;
+}
+
+/* Tlačítko pro přepínání v pravém horním rohu */
+.dark-mode-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: var(--bg-container);
+    border: 1px solid var(--border-color);
+    font-size: 20px;
+    padding: 10px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.dark-mode-btn:hover {
+    transform: scale(1.1);
 }
 
 .chat-container {
-    width: 420px;
-    background: white;
-    border-radius: 18px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
-    padding: 20px;
+    position: relative;
+    width: 550px;       
+    max-width: 95vw;
+    background: var(--bg-container);
+    border-radius: 28px; 
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+    padding: 30px;
+    transition: background 0.3s ease;
 }
 
 h1 {
-    margin: 0 0 16px;
+    margin: 0 0 24px;
     text-align: center;
-    color: #1f2937;
+    color: var(--text-main);
+    font-size: 36px;
+    font-weight: 800;
 }
 
-.messages{
-    height: 320px;
-    border: 1px solid #d1d5db;
-    border-radius: 12px;
-    padding: 12px;
+/* Okno se zprávami */
+.messages {
+    height: 300px;
+    border: 1px solid var(--border-messages);
+    border-radius: 16px;
+    padding: 16px;
     overflow-y: auto;
-    background: #f9fafb;
-}
-
-.message{
-    margin-bottom: 10px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: #dbeafe;
-    color: #1e3a8e;
-}
-
-.input-area{
+    background: var(--bg-messages);
+    margin-bottom: 5px;
     display: flex;
+    flex-direction: column;
     gap: 8px;
-    margin-top: 14px;
+    transition: all 0.3s ease;
 }
 
-input{
-    padding: 10px;
-    border: 1px solid #cbd5;
-    border-radius: 10px;
-    font-size: 14px;
+/* Zpráva od ostatních uživatelů (vlevo) */
+.message {
+    padding: 10px 14px;
+    border-radius: 16px 16px 16px 4px;
+    background: var(--bg-msg-other); 
+    color: var(--text-msg-other);
+    align-self: flex-start; 
+    max-width: 75%;
+    word-break: break-word;
+    position: relative;
 }
 
-#name{
-    width: 100px;
+/* Tvoje vlastní zpráva (vpravo) */
+.message.my-message {
+    background: #2563eb; 
+    color: white;
+    align-self: flex-end;  
+    border-radius: 16px 16px 4px 16px;
 }
 
-#message{
+/* Styl pro malý čas odeslání zprávy */
+.timestamp {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 4px;
+    display: block;
+    text-align: right;
+}
+
+.my-message .timestamp {
+    color: #e0e7ff;
+    text-align: right;
+}
+
+/* Indikátor psaní */
+.typing-indicator {
+    height: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 10px;
+    padding-left: 10px;
+}
+
+/* Spodní lišta s ovládacími prvky */
+.input-area {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+input {
+    padding: 14px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    font-size: 15px;
+    outline: none;
+    color: var(--text-main);
+    background: var(--bg-input);
+    transition: all 0.3s ease;
+}
+
+input::placeholder {
+    color: var(--text-muted);
+}
+
+input:focus {
+    border-color: #2563eb;
+}
+
+#name {
+    width: 120px;
+}
+
+#message {
     flex: 1;
 }
 
-button{
+/* Tlačítko pro vyvolání smajlíků */
+#emoji-trigger {
+    background: var(--bg-msg-other);
+    border: 1px solid var(--border-color);
+    font-size: 18px;
+    padding: 11px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+#emoji-trigger:hover {
+    background: var(--border-color);
+}
+
+/* Tlačítko Send */
+#send {
     border: none;
-    border-radius: 10px;
-    padding: 10px 16px;
+    border-radius: 14px;
+    padding: 14px 24px;
     background: #2563eb;
     color: white;
     font-weight: bold;
+    font-size: 15px;
     cursor: pointer;
+    transition: background 0.2s;
 }
 
-button:hover{
+#send:hover {
+    background: #1d4ed8;
+}
+
+/* Kontejner pro nový picker s hezkým stínem */
+#picker-container em-emoji-picker {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    border-radius: 12px;
+}
+    --bg-body: #0f172a;
+    --bg-container: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --bg-messages: #0f172a;
+    --border-messages: #334155;
+    --bg-msg-other: #334155;
+    --text-msg-other: #f1f5f9;
+    --bg-input: #1e293b;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-body);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+
+/* Tlačítko pro přepínání v pravém horním rohu */
+.dark-mode-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: var(--bg-container);
+    border: 1px solid var(--border-color);
+    font-size: 20px;
+    padding: 10px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.dark-mode-btn:hover {
+    transform: scale(1.1);
+}
+
+.chat-container {
+    position: relative;
+    width: 550px;       
+    max-width: 95vw;
+    background: var(--bg-container);
+    border-radius: 28px; 
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+    padding: 30px;
+    transition: background 0.3s ease;
+}
+
+h1 {
+    margin: 0 0 24px;
+    text-align: center;
+    color: var(--text-main);
+    font-size: 36px;
+    font-weight: 800;
+}
+
+/* Okno se zprávami */
+.messages {
+    height: 300px;
+    border: 1px solid var(--border-messages);
+    border-radius: 16px;
+    padding: 16px;
+    overflow-y: auto;
+    background: var(--bg-messages);
+    margin-bottom: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+/* Zpráva od ostatních uživatelů (vlevo) */
+.message {
+    padding: 10px 14px;
+    border-radius: 16px 16px 16px 4px;
+    background: var(--bg-msg-other); 
+    color: var(--text-msg-other);
+    align-self: flex-start; 
+    max-width: 75%;
+    word-break: break-word;
+    position: relative;
+}
+
+/* Tvoje vlastní zpráva (vpravo) */
+.message.my-message {
+    background: #2563eb; 
+    color: white;
+    align-self: flex-end;  
+    border-radius: 16px 16px 4px 16px;
+}
+
+/* Styl pro malý čas odeslání zprávy */
+.timestamp {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 4px;
+    display: block;
+    text-align: right;
+}
+
+.my-message .timestamp {
+    color: #e0e7ff;
+    text-align: right;
+}
+
+/* Indikátor psaní */
+.typing-indicator {
+    height: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 10px;
+    padding-left: 10px;
+}
+
+/* Spodní lišta s ovládacími prvky */
+.input-area {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+input {
+    padding: 14px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    font-size: 15px;
+    outline: none;
+    color: var(--text-main);
+    background: var(--bg-input);
+    transition: all 0.3s ease;
+}
+
+input::placeholder {
+    color: var(--text-muted);
+}
+
+input:focus {
+    border-color: #2563eb;
+}
+
+#name {
+    width: 120px;
+}
+
+#message {
+    flex: 1;
+}
+
+/* Tlačítko pro vyvolání smajlíků */
+#emoji-trigger {
+    background: var(--bg-msg-other);
+    border: 1px solid var(--border-color);
+    font-size: 18px;
+    padding: 11px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+#emoji-trigger:hover {
+    background: var(--border-color);
+}
+
+/* Tlačítko Send */
+#send {
+    border: none;
+    border-radius: 14px;
+    padding: 14px 24px;
+    background: #2563eb;
+    color: white;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#send:hover {
     background: #1d4ed8;
 }
