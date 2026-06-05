@@ -16,6 +16,16 @@ const codeToggle = document.getElementById('code-toggle');
 let isMentorMode = false;
 let isCodeMode = false;
 
+function isDarkTheme() {
+    return document.body.classList.contains('dark-theme');
+}
+
+function syncPickerTheme() {
+    if (typeof picker !== 'undefined') {
+        picker.update({ theme: isDarkTheme() ? 'dark' : 'light' });
+    }
+}
+
 const urlUsername = new URLSearchParams(window.location.search).get('user');
 const defaultUsername = `User-${Math.floor(1000 + Math.random() * 9000)}`;
 const lockedUsername = urlUsername || localStorage.getItem('chat_username') || defaultUsername;
@@ -37,7 +47,7 @@ codeToggle.addEventListener('click', () => {
 
 // Emoji Picker
 const picker = new EmojiMart.Picker({
-    theme: document.body.classList.contains('dark-theme') ? 'dark' : 'light',
+    theme: isDarkTheme() ? 'dark' : 'light',
     set: 'native',
     onEmojiSelect: (emoji) => {
         messageInput.value += emoji.native;
@@ -46,6 +56,7 @@ const picker = new EmojiMart.Picker({
     }
 });
 pickerContainer.appendChild(picker);
+syncPickerTheme();
 
 emojiTrigger.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -62,7 +73,7 @@ document.addEventListener('click', (event) => {
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
     darkModeToggle.innerHTML = '&#9788;';
-    picker.update({ theme: 'dark' });
+    syncPickerTheme();
 }
 
 darkModeToggle.addEventListener('click', () => {
@@ -70,7 +81,7 @@ darkModeToggle.addEventListener('click', () => {
     const isDark = document.body.classList.contains('dark-theme');
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     darkModeToggle.innerHTML = isDark ? '&#9788;' : '&#9790;';
-    picker.update({ theme: isDark ? 'dark' : 'light' });
+    syncPickerTheme();
 });
 
 // Typing indicator updated to English
@@ -172,8 +183,7 @@ function getCodeFenceContent(text) {
 }
 
 function autoResizeMessageInput() {
-    messageInput.style.height = 'auto';
-    messageInput.style.height = `${Math.min(messageInput.scrollHeight, 150)}px`;
+    messageInput.scrollTop = messageInput.scrollHeight;
 }
 
 autoResizeMessageInput();
