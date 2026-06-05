@@ -11,17 +11,21 @@
     <button id="dark-mode-toggle" class="dark-mode-btn" type="button">🌙</button>
 
     <main class="chat-container">
-        <h1>Fejsbuk</h1>
-        
+        <h1>Class chat</h1>
         <div id="messages" class="messages"></div>
-
         <div id="typing-indicator" class="typing-indicator"></div>
         
         <section class="input-area">
-            <input class="your-name" id="name" type="text" placeholder="Your name">
-            <input id="message" type="text" placeholder="Type a message">
-            <button id="emoji-trigger" type="button">🥰</button> 
-            <button id="send">➢</button>
+            <input id="name" type="text" placeholder="Your name">
+            
+            <div class="message-input-wrapper">
+                <button id="code-toggle" class="format-btn" type="button" title="Formátovat jako kód">Code</button>
+                <input id="message" type="text" placeholder="Type a message">
+                <button id="emoji-trigger" type="button">🥰</button> 
+            </div>
+
+            <button id="mentor-toggle" class="mentor-btn" type="button" title="Zapnout režim mentora">🎓 Mentor</button>
+            <button id="send">Send</button>
             
             <div id="picker-container" style="display: none; position: absolute; bottom: 80px; right: 20px; z-index: 100;"></div>
         </section>
