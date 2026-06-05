@@ -12,6 +12,8 @@ const pickerContainer = document.getElementById('picker-container');
 const darkModeToggle = document.getElementById('dark-mode-toggle');
 const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
+const avatarButton = document.getElementById('avatar-button');
+const avatarInput = document.getElementById('avatar-input');
 
 let isMentorMode = false;
 let isCodeMode = false;
@@ -32,6 +34,27 @@ const lockedUsername = urlUsername || localStorage.getItem('chat_username') || d
 localStorage.setItem('chat_username', lockedUsername);
 nameInput.value = lockedUsername;
 nameInput.title = "Username is locked for this browser";
+
+let currentAvatar = localStorage.getItem(`chat_avatar_${lockedUsername}`) || createAvatarDataUrl(lockedUsername);
+setAvatarButton(currentAvatar);
+
+avatarButton.addEventListener('click', () => {
+    avatarInput.click();
+});
+
+avatarInput.addEventListener('change', () => {
+    const file = avatarInput.files && avatarInput.files[0];
+    if (!file) return;
+
+    resizeAvatarFile(file).then((avatarDataUrl) => {
+        currentAvatar = avatarDataUrl;
+        localStorage.setItem(`chat_avatar_${lockedUsername}`, currentAvatar);
+        setAvatarButton(currentAvatar);
+    }).catch(() => {
+        alert("Avatar image could not be loaded.");
+    });
+    avatarInput.value = "";
+});
 
 mentorToggle.addEventListener('click', () => {
     isMentorMode = !isMentorMode;
@@ -115,6 +138,7 @@ function sendMessage() {
 
   socket.emit("chat message", {
     name: lockedUsername,
+    avatar: currentAvatar,
     text: text,
     time: timeString,
     isMentor: isMentorMode,
@@ -138,13 +162,19 @@ messageInput.addEventListener("keydown", (e) => {
  
 // Receive message - "You" used instead of "Vy"
 socket.on("chat message", (data) => {
+  const messageRow = document.createElement("div");
+  messageRow.classList.add("message-row");
+
   const messageElement = document.createElement("div");
   messageElement.classList.add("message");
   
   const currentUserName = lockedUsername;
   const isMe = data.name === currentUserName;
   
-  if (isMe) messageElement.classList.add("my-message");
+  if (isMe) {
+    messageRow.classList.add("my-message-row");
+    messageElement.classList.add("my-message");
+  }
   if (data.isMentor) messageElement.classList.add("mentor-message");
 
   const displayName = isMe ? "You" : data.name;
@@ -157,9 +187,16 @@ socket.on("chat message", (data) => {
     ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
     : `<div class="message-text">${escapeHTML(data.text)}</div>`;
 
+  const avatarElement = document.createElement("img");
+  avatarElement.className = "message-avatar";
+  avatarElement.alt = "";
+  avatarElement.src = data.avatar || createAvatarDataUrl(data.name || "Anonymous");
+
   messageElement.innerHTML = `${headerHTML}${contentHTML}<span class="timestamp">${data.time}</span>`;
  
-  messages.appendChild(messageElement);
+  messageRow.appendChild(avatarElement);
+  messageRow.appendChild(messageElement);
+  messages.appendChild(messageRow);
   messages.scrollTop = messages.scrollHeight;
 });
 
@@ -184,6 +221,64 @@ function getCodeFenceContent(text) {
 
 function autoResizeMessageInput() {
     messageInput.scrollTop = messageInput.scrollHeight;
+}
+
+function setAvatarButton(src) {
+    avatarButton.style.backgroundImage = `url("${src}")`;
+}
+
+function createAvatarDataUrl(name) {
+    const palettes = [
+        ["#2543dd", "#22c55e"],
+        ["#ef476f", "#ffd166"],
+        ["#7c3aed", "#38bdf8"],
+        ["#f97316", "#14b8a6"],
+        ["#0f172a", "#f43f5e"]
+    ];
+    const hash = [...name].reduce((total, char) => total + char.charCodeAt(0), 0);
+    const [bg, fg] = palettes[hash % palettes.length];
+    const initials = name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map(part => part[0])
+        .join("")
+        .toUpperCase() || "?";
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+            <rect width="96" height="96" rx="20" fill="${bg}"/>
+            <circle cx="76" cy="20" r="18" fill="${fg}" opacity="0.9"/>
+            <circle cx="18" cy="78" r="22" fill="${fg}" opacity="0.35"/>
+            <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle"
+                font-family="Arial, sans-serif" font-size="34" font-weight="900" fill="#fff">${escapeHTML(initials)}</text>
+        </svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function resizeAvatarFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener('error', reject);
+        reader.addEventListener('load', () => {
+            const image = new Image();
+            image.addEventListener('error', reject);
+            image.addEventListener('load', () => {
+                const size = 160;
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                const side = Math.min(image.width, image.height);
+                const sx = (image.width - side) / 2;
+                const sy = (image.height - side) / 2;
+
+                canvas.width = size;
+                canvas.height = size;
+                context.drawImage(image, sx, sy, side, side, 0, 0, size, size);
+                resolve(canvas.toDataURL('image/jpeg', 0.82));
+            });
+            image.src = reader.result;
+        });
+        reader.readAsDataURL(file);
+    });
 }
 
 autoResizeMessageInput();
