@@ -9,56 +9,64 @@ html {
 
 :root {
     color-scheme: light;
-    --page-bg: #f7f8fb;
-    --panel-bg: #ffffff;
-    --panel-bg-soft: #f9fafc;
-    --text: #070b1d;
-    --text-muted: #667085;
-    --line: #070b1d;
-    --grid-line: rgba(37, 67, 221, 0.07);
-    --accent: #2543dd;
-    --accent-hover: #1830b8;
+    --page-bg: #f4f8ff;
+    --panel-bg: rgba(255, 255, 255, 0.94);
+    --panel-bg-soft: rgba(244, 249, 255, 0.88);
+    --text: #07122f;
+    --text-muted: #64708c;
+    --line: #d7e1ff;
+    --line-strong: #3844ff;
+    --grid-line: rgba(56, 68, 255, 0.08);
+    --net-line: rgba(56, 201, 255, 0.18);
+    --accent: #3844ff;
+    --accent-hover: #2432de;
+    --accent-cyan: #38c9ff;
     --accent-text: #ffffff;
     --button-bg: #ffffff;
-    --button-hover: #f2f5ff;
+    --button-hover: #edf7ff;
     --message-other-bg: #ffffff;
     --message-other-text: #111827;
-    --message-me-bg: #2543dd;
+    --message-me-bg: #3844ff;
     --message-me-text: #ffffff;
-    --mentor-bg: #fff7d6;
-    --mentor-text: #573b00;
-    --mentor-line: #c89100;
+    --mentor-bg: #fff8dd;
+    --mentor-text: #654504;
+    --mentor-line: #ffd166;
     --code-bg: #0b1020;
-    --code-text: #e5e7eb;
-    --focus: rgba(37, 67, 221, 0.24);
-    --hard-shadow: 6px 6px 0 var(--line);
-    --soft-shadow: 3px 3px 0 var(--line);
+    --code-text: #ecf8ff;
+    --focus: rgba(56, 201, 255, 0.26);
+    --hard-shadow: 0 24px 70px rgba(15, 35, 95, 0.14);
+    --soft-shadow: 0 12px 30px rgba(15, 35, 95, 0.1);
 }
 
 .dark-theme {
     color-scheme: dark;
-    --page-bg: #080b18;
-    --panel-bg: #111323;
-    --panel-bg-soft: #0c0f1d;
+    --page-bg: #060a1c;
+    --panel-bg: rgba(12, 17, 39, 0.94);
+    --panel-bg-soft: rgba(8, 13, 31, 0.9);
     --text: #ffffff;
-    --text-muted: #9ca8c4;
-    --line: #dbe4ff;
-    --grid-line: rgba(219, 228, 255, 0.07);
-    --accent: #4661ff;
-    --accent-hover: #6f83ff;
-    --accent-text: #ffffff;
-    --button-bg: #161a2c;
-    --button-hover: #1f2744;
-    --message-other-bg: #161a2c;
+    --text-muted: #a9b8dc;
+    --line: rgba(136, 162, 255, 0.28);
+    --line-strong: #38c9ff;
+    --grid-line: rgba(56, 201, 255, 0.08);
+    --net-line: rgba(56, 68, 255, 0.26);
+    --accent: #38c9ff;
+    --accent-hover: #7adfff;
+    --accent-cyan: #38c9ff;
+    --accent-text: #061026;
+    --button-bg: #111936;
+    --button-hover: #17244c;
+    --message-other-bg: #111936;
     --message-other-text: #f8fafc;
-    --message-me-bg: #4661ff;
+    --message-me-bg: #3844ff;
     --message-me-text: #ffffff;
-    --mentor-bg: #34240a;
+    --mentor-bg: #30240d;
     --mentor-text: #ffe8a3;
     --mentor-line: #d59d22;
     --code-bg: #050816;
     --code-text: #e8edff;
-    --focus: rgba(111, 131, 255, 0.28);
+    --focus: rgba(56, 201, 255, 0.3);
+    --hard-shadow: 0 26px 80px rgba(0, 0, 0, 0.36);
+    --soft-shadow: 0 14px 32px rgba(0, 0, 0, 0.2);
 }
 
 body {
@@ -72,9 +80,12 @@ body {
     overflow: hidden;
     background-color: var(--page-bg);
     background-image:
+        linear-gradient(135deg, rgba(56, 68, 255, 0.14), transparent 32%),
+        linear-gradient(315deg, rgba(56, 201, 255, 0.16), transparent 34%),
         linear-gradient(var(--grid-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 56px 56px;
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(45deg, transparent 0 46%, var(--net-line) 47% 48%, transparent 49% 100%);
+    background-size: auto, auto, 54px 54px, 54px 54px, 180px 180px;
     color: var(--text);
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     transition: background-color 0.2s ease, color 0.2s ease;
@@ -88,16 +99,15 @@ textarea {
 
 button {
     color: inherit;
-    transition: transform 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
+    transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
 button:hover {
-    transform: translate(-1px, -1px);
+    transform: translateY(-1px);
 }
 
 button:active {
-    transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 var(--line);
+    transform: translateY(0);
 }
 
 .dark-mode-btn {
@@ -112,7 +122,7 @@ button:active {
     align-items: center;
     justify-content: center;
     background: var(--button-bg);
-    border: 2px solid var(--line);
+    border: 1px solid var(--line);
     border-radius: 6px;
     box-shadow: var(--soft-shadow);
     cursor: pointer;
@@ -128,9 +138,10 @@ button:active {
     gap: 18px;
     padding: clamp(18px, 3.2vw, 36px);
     background: var(--panel-bg);
-    border: 2px solid var(--line);
+    border: 1px solid rgba(132, 157, 255, 0.38);
     border-radius: 8px;
     box-shadow: var(--hard-shadow);
+    backdrop-filter: blur(18px);
 }
 
 .chat-header {
@@ -139,14 +150,35 @@ button:active {
     align-items: center;
 }
 
+.brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.brand-mark {
+    flex: 0 0 auto;
+    filter: drop-shadow(0 10px 16px rgba(56, 68, 255, 0.18));
+}
+
+.brand-kicker {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
 h1 {
     margin: 0;
     color: var(--text);
-    font-size: clamp(34px, 5vw, 56px);
+    font-size: clamp(32px, 5vw, 52px);
     line-height: 1;
     font-weight: 900;
     letter-spacing: 0;
-    text-align: center;
+    text-align: left;
 }
 
 .messages {
@@ -159,8 +191,9 @@ h1 {
     gap: 14px;
     overflow-y: auto;
     background: var(--panel-bg-soft);
-    border: 2px solid var(--line);
+    border: 1px solid var(--line);
     border-radius: 6px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
 }
 
 .messages::-webkit-scrollbar,
@@ -179,7 +212,7 @@ textarea::-webkit-scrollbar-track {
 .messages::-webkit-scrollbar-thumb,
 .code-block-wrapper::-webkit-scrollbar-thumb,
 textarea::-webkit-scrollbar-thumb {
-    background: var(--line);
+    background: var(--line-strong);
     border-radius: 999px;
 }
 
@@ -203,10 +236,14 @@ textarea::-webkit-scrollbar-thumb {
     height: 42px;
     min-width: 42px;
     object-fit: cover;
-    border: 2px solid var(--line);
+    border: 2px solid #ffffff;
     border-radius: 8px;
     box-shadow: var(--soft-shadow);
     background: var(--button-bg);
+}
+
+.dark-theme .message-avatar {
+    border-color: rgba(255, 255, 255, 0.18);
 }
 
 .message {
@@ -218,15 +255,16 @@ textarea::-webkit-scrollbar-thumb {
     align-self: flex-start;
     background: var(--message-other-bg);
     color: var(--message-other-text);
-    border: 2px solid var(--line);
+    border: 1px solid var(--line);
     border-radius: 6px;
     box-shadow: var(--soft-shadow);
     overflow-wrap: anywhere;
 }
 
 .message.my-message {
-    background: var(--message-me-bg);
+    background: linear-gradient(135deg, var(--message-me-bg), #256eff);
     color: var(--message-me-text);
+    border-color: rgba(56, 68, 255, 0.56);
 }
 
 .message.mentor-message {
@@ -253,7 +291,7 @@ textarea::-webkit-scrollbar-thumb {
     padding: 3px 8px;
     background: var(--accent);
     color: var(--accent-text);
-    border: 1px solid var(--line);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 4px;
     font-size: 11px;
     font-weight: 900;
@@ -267,7 +305,7 @@ textarea::-webkit-scrollbar-thumb {
     padding: 12px;
     overflow-x: auto;
     background: var(--code-bg);
-    border: 2px solid var(--line);
+    border: 1px solid rgba(56, 201, 255, 0.34);
     border-radius: 6px;
     box-shadow: var(--soft-shadow);
 }
@@ -312,7 +350,7 @@ textarea::-webkit-scrollbar-thumb {
 .mentor-btn,
 .icon-btn {
     background: var(--button-bg);
-    border: 2px solid var(--line);
+    border: 1px solid var(--line);
     border-radius: 6px;
     box-shadow: var(--soft-shadow);
 }
@@ -349,6 +387,7 @@ textarea::-webkit-scrollbar-thumb {
 }
 
 .message-input-wrapper:focus-within {
+    border-color: var(--accent-cyan);
     box-shadow: 0 0 0 4px var(--focus), var(--soft-shadow);
 }
 
@@ -368,13 +407,13 @@ textarea#message {
     color: var(--text);
     line-height: 1.35;
     scrollbar-width: thin;
-    scrollbar-color: var(--line) transparent;
+    scrollbar-color: var(--line-strong) transparent;
 }
 
 .messages,
 .code-block-wrapper {
     scrollbar-width: thin;
-    scrollbar-color: var(--line) transparent;
+    scrollbar-color: var(--line-strong) transparent;
 }
 
 textarea#message::placeholder {
@@ -420,9 +459,9 @@ textarea#message::placeholder {
 .send-btn,
 .format-btn.active,
 .mentor-btn.active {
-    background: var(--accent) !important;
+    background: linear-gradient(135deg, var(--accent), #256eff) !important;
     color: var(--accent-text) !important;
-    border-color: var(--line) !important;
+    border-color: var(--line-strong) !important;
 }
 
 .send-btn:hover,
@@ -450,21 +489,21 @@ textarea#message::placeholder {
 }
 
 .dark-theme #picker-container em-emoji-picker {
-    --background-rgb: 17, 19, 35;
-    --border-color: #dbe4ff;
+    --background-rgb: 17, 25, 54;
+    --border-color: rgba(136, 162, 255, 0.28);
     --category-icon-color: #dbe4ff;
-    --color-border-over: #4661ff;
+    --color-border-over: #38c9ff;
     --font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --rgb-accent: 70, 97, 255;
-    --rgb-background: 17, 19, 35;
+    --rgb-accent: 56, 201, 255;
+    --rgb-background: 17, 25, 54;
     --rgb-color: 255, 255, 255;
-    --rgb-input: 12, 15, 29;
+    --rgb-input: 8, 13, 31;
     color-scheme: dark;
 }
 
 #picker-container em-emoji-picker {
     max-width: min(352px, calc(100vw - 24px));
-    border: 2px solid var(--line);
+    border: 1px solid var(--line);
     border-radius: 8px;
     overflow: hidden;
     box-shadow: var(--soft-shadow);
@@ -533,8 +572,18 @@ textarea#message::placeholder {
         box-shadow: none;
     }
 
-    h1 {
+    .brand-lockup {
+        width: 100%;
+        justify-content: center;
         padding-right: 44px;
+    }
+
+    .brand-mark {
+        width: 32px;
+        height: auto;
+    }
+
+    h1 {
         font-size: 34px;
     }
 
