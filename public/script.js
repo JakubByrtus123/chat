@@ -49,7 +49,7 @@ document.addEventListener('click', (event) => {
     }
 });
 
-// Dark Mode
+// Dark Mode logic
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
     darkModeToggle.textContent = '☀️';
@@ -64,7 +64,6 @@ darkModeToggle.addEventListener('click', () => {
     picker.update({ theme: isDark ? 'dark' : 'light' });
 });
 
-// Cache jména
 if (localStorage.getItem('chat_username')) {
     nameInput.value = localStorage.getItem('chat_username');
 }
@@ -72,23 +71,18 @@ nameInput.addEventListener('input', () => {
     localStorage.setItem('chat_username', nameInput.value);
 });
 
-// Indikátor psaní
+// Typing indicator updated to English
 let typingTimeout;
 messageInput.addEventListener('input', () => {
-    let name = nameInput.value || "Anonymous";
-    if (isMentorMode) name += " [Mentor] 🌟";
-    socket.emit('typing', { name: name, isTyping: true });
-
+    socket.emit('typing', { name: nameInput.value || "Anonymous", isTyping: true });
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-        socket.emit('typing', { name: name, isTyping: false });
-    }, 2000);
+        socket.emit('typing', { name: nameInput.value || "Anonymous", isTyping: false });
+    }, 1500);
 });
 
 socket.on('typing', (data) => {
-    let currentUserName = nameInput.value || "Anonymous";
-    if (isMentorMode) currentUserName += " [Mentor] 🌟";
-    
+    const currentUserName = nameInput.value || "Anonymous";
     if (data.isTyping && data.name !== currentUserName) {
         typingIndicator.textContent = `${data.name} is typing...`;
     } else if (!data.isTyping) {
@@ -96,7 +90,7 @@ socket.on('typing', (data) => {
     }
 });
 
-// Odeslání zprávy
+// Send message
 function sendMessage() {
   const text = messageInput.value;
   if (text.trim() === "") return;
@@ -121,7 +115,7 @@ function sendMessage() {
 sendButton.addEventListener("click", sendMessage);
 messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
  
-// Příjem zprávy - TLAČÍTKO COPY JE ZDE KOMPLETNĚ ODSTRANĚNO Z HTML ŠABLONY
+// Receive message - "You" used instead of "Vy"
 socket.on("chat message", (data) => {
   const messageElement = document.createElement("div");
   messageElement.classList.add("message");
@@ -132,10 +126,10 @@ socket.on("chat message", (data) => {
   if (isMe) messageElement.classList.add("my-message");
   if (data.isMentor) messageElement.classList.add("mentor-message");
 
-  const displayName = isMe ? "Vy" : data.name;
+  const displayName = isMe ? "You" : data.name;
   const mentorBadge = data.isMentor ? `<span class="mentor-tag">Mentor 🌟</span>` : "";
 
-  let headerHTML = `<div class="message-header"><strong>${escapeHTML(displayName)}:</strong>${mentorBadge}</div>`;
+  let headerHTML = `<div class="message-header"><strong>${escapeHTML(displayName)}</strong>${mentorBadge}</div>`;
 
   let contentHTML = data.isCode 
     ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(data.text)}</code></pre></div>`

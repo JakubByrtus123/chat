@@ -14,11 +14,10 @@
     --text-msg-other: #334155;
     --bg-input: #fff;
     
-    /* Mentor barvy - Light */
     --bg-mentor: #fffbeb;
     --text-mentor: #78350f;
     --border-mentor: #fde68a;
-    --tag-mentor-bg: #b45309;
+    --tag-mentor-bg: #78350f;
     --tag-mentor-text: #ffffff;
 }
 
@@ -34,7 +33,6 @@
     --text-msg-other: #f1f5f9;
     --bg-input: #1e293b;
     
-    /* Mentor barvy - Dark */
     --bg-mentor: #2d1a0f;
     --text-mentor: #fef3c7;
     --border-mentor: #b45309;
@@ -145,12 +143,13 @@ h1 {
     background: var(--tag-mentor-bg);
     color: var(--tag-mentor-text);
     font-size: 11px;
-    padding: 2px 8px;
+    padding: 3px 8px;
     border-radius: 6px;
     font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-/* Blok kódu bez jakýchkoliv prvků tlačítka copy */
 .code-block-wrapper {
     background: #0f172a;
     border-radius: 8px;
@@ -218,7 +217,8 @@ input {
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     border-radius: 14px;
-    padding: 0 8px; 
+    padding: 0 12px; 
+    gap: 8px;
 }
 .message-input-wrapper:focus-within {
     border-color: #2563eb;
@@ -227,7 +227,8 @@ input {
     flex: 1;
     border: none !important;
     background: transparent !important;
-    padding: 14px 10px;
+    padding: 14px 0px;
+    width: 100%;
 }
 
 .format-btn {
@@ -254,6 +255,10 @@ input {
     border: none;
     font-size: 20px;
     cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .mentor-btn {
@@ -269,6 +274,7 @@ input {
     background: #d97706 !important;
     color: white !important;
     font-weight: bold;
+    border-color: #b45309;
 }
 
 #send {
