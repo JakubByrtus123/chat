@@ -657,3 +657,32 @@ textarea#message::placeholder {
         padding-inline: 4px;
     }
 }
+
+/* Stylování tlačítka pro smazání zprávy */
+.delete-msg-btn {
+    background: transparent;
+    border: none;
+    color: currentColor;
+    opacity: 0.4;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    margin-left: auto; /* Posune tlačítko na pravou stranu hlavičky zprávy */
+    border-radius: 4px;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.delete-msg-btn:hover {
+    opacity: 1;
+    background-color: rgba(255, 0, 0, 0.15);
+    transform: none; /* Vypneme globální nadzvedávání tlačítek */
+}
+
+/* Vylepšení pro dark-theme / my-message, aby se červený podbarvený hover choval hezky */
+.my-message .delete-msg-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.message-header {
+    width: 100%; /* Aby správně fungoval flex a margin-left: auto */
+}
