@@ -1,6 +1,4 @@
-const socket = io('192.168.21.86:3000');
-// const socket = io();
-// pokud chci aby to byl i local host
+const socket = io();
 
 const messages = document.getElementById("messages");
 const nameInput = document.getElementById("name");
@@ -161,7 +159,16 @@ messageInput.addEventListener("keydown", (e) => {
 });
  
 // Receive message - "You" used instead of "Vy"
+socket.on("chat history", (history) => {
+  if (!Array.isArray(history)) return;
+  history.forEach(renderMessage);
+});
+
 socket.on("chat message", (data) => {
+  renderMessage(data);
+});
+
+function renderMessage(data) {
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row");
 
@@ -198,7 +205,7 @@ socket.on("chat message", (data) => {
   messageRow.appendChild(messageElement);
   messages.appendChild(messageRow);
   messages.scrollTop = messages.scrollHeight;
-});
+}
 
 function escapeHTML(str) {
     return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
