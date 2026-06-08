@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const messagesFile = path.join(__dirname, 'messages.json');
+const avatarsFile = path.join(__dirname, 'avatars.json'); // Soubor pro trvalé uložení profilovek
 
 function loadMessages() {
     try {
@@ -27,7 +28,29 @@ function saveMessages(messages) {
     }
 }
 
+// Načtení profilovek ze souboru při startu
+function loadAvatars() {
+    try {
+        if (!fs.existsSync(avatarsFile)) return {};
+        return JSON.parse(fs.readFileSync(avatarsFile, 'utf8'));
+    } catch (error) {
+        console.error('Could not load saved avatars:', error);
+        return {};
+    }
+}
+
+// Uložení profilovek do souboru
+function saveAvatars(avatars) {
+    try {
+        fs.writeFileSync(avatarsFile, JSON.stringify(avatars, null, 2));
+    } catch (error) {
+        console.error('Could not save avatars:', error);
+    }
+}
+
 const savedMessages = loadMessages();
+const userAvatars = loadAvatars(); // Načteme uložené profilovky z disku
+
 const io = new Server(server, {
     cors: {
         origin: '*'
@@ -36,31 +59,31 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// Objekt pro ukládání profilovek v paměti serveru (klíč = username, hodnota = Base64/dataURL)
-const userAvatars = {}; 
-
 io.on('connection', (socket) => {
 
     console.log('A user connected');
     socket.emit('chat history', savedMessages);
 
-    // Klient si po připojení vyžádá profilovku ze serveru (pro případ, že změnil prohlížeč)
+    // Klient si po připojení vyžádá profilovku ze serveru
     socket.on('get avatar', (data) => {
-        if (userAvatars[data.username]) {
-            socket.emit('user avatar', { avatar: userAvatars[data.username] });
+        if (data && data.username) {
+            socket.emit('user avatar', {
+                username: data.username,
+                avatar: userAvatars[data.username] || null
+            });
         }
     });
 
-    // Uložení nové profilovky na serveru
+    // Uložení nové profilovky na serveru a zápis na disk
     socket.on('update avatar', (data) => {
         if (data.username && data.avatar) {
             userAvatars[data.username] = data.avatar;
+            saveAvatars(userAvatars); // Uložíme do avatars.json
         }
     });
 
     // Zpracování nové zprávy
     socket.on('chat message', (data) => {
-        // Pokud má uživatel na serveru uloženou novější profilovku, použijeme ji
         if (userAvatars[data.name]) {
             data.avatar = userAvatars[data.name];
         }
@@ -75,12 +98,9 @@ io.on('connection', (socket) => {
         const index = savedMessages.findIndex(m => m.id === data.id);
         
         if (index !== -1) {
-            // Kontrola, zda zprávu maže skutečně ten, kdo ji poslal
             if (savedMessages[index].name === data.username) {
                 savedMessages.splice(index, 1);
                 saveMessages(savedMessages);
-                
-                // Dáme vědět všem klientům, aby zprávu smazali z obrazovky
                 io.emit('message deleted', { id: data.id });
             }
         }

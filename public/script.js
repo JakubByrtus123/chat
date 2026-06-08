@@ -36,6 +36,35 @@ nameInput.title = "Username is locked for this browser";
 let currentAvatar = localStorage.getItem(`chat_avatar_${lockedUsername}`) || createAvatarDataUrl(lockedUsername);
 setAvatarButton(currentAvatar);
 
+function applyAvatar(avatar) {
+    currentAvatar = avatar;
+    localStorage.setItem(`chat_avatar_${lockedUsername}`, currentAvatar);
+    setAvatarButton(currentAvatar);
+}
+
+function saveAvatar(avatar) {
+    applyAvatar(avatar);
+    socket.emit('update avatar', { username: lockedUsername, avatar: currentAvatar });
+}
+
+function isCustomAvatar(src) {
+    return typeof src === 'string' && src.startsWith('data:image/') && !src.startsWith('data:image/svg');
+}
+
+socket.on('connect', () => {
+    socket.emit('get avatar', { username: lockedUsername });
+});
+
+socket.on('user avatar', (data) => {
+    if (!data || data.username !== lockedUsername) return;
+
+    if (data.avatar) {
+        applyAvatar(data.avatar);
+    } else if (isCustomAvatar(currentAvatar)) {
+        socket.emit('update avatar', { username: lockedUsername, avatar: currentAvatar });
+    }
+});
+
 avatarButton.addEventListener('click', () => {
     avatarInput.click();
 });
@@ -45,9 +74,7 @@ avatarInput.addEventListener('change', () => {
     if (!file) return;
 
     resizeAvatarFile(file).then((avatarDataUrl) => {
-        currentAvatar = avatarDataUrl;
-        localStorage.setItem(`chat_avatar_${lockedUsername}`, currentAvatar);
-        setAvatarButton(currentAvatar);
+        saveAvatar(avatarDataUrl);
     }).catch(() => {
         alert("Avatar image could not be loaded.");
     });
