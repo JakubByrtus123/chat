@@ -135,6 +135,7 @@ function sendMessage() {
   const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   socket.emit("chat message", {
+    id: Date.now() + Math.random().toString(36).substr(2, 9), // Generování unikátního ID zprávy
     name: lockedUsername,
     avatar: currentAvatar,
     text: text,
@@ -171,6 +172,15 @@ socket.on("chat message", (data) => {
 function renderMessage(data) {
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row");
+  
+  // Bezpečné přiřazení ID řádku zprávy
+  if (data.id) {
+    messageRow.setAttribute('data-id', data.id);
+  } else {
+    const fallbackId = Date.now() + Math.random().toString(36).substr(2, 9);
+    data.id = fallbackId;
+    messageRow.setAttribute('data-id', fallbackId);
+  }
 
   const messageElement = document.createElement("div");
   messageElement.classList.add("message");
@@ -187,7 +197,17 @@ function renderMessage(data) {
   const displayName = isMe ? "You" : data.name;
   const mentorBadge = data.isMentor ? `<span class="mentor-tag">Mentor &#10022;</span>` : "";
 
-  let headerHTML = `<div class="message-header"><strong>${escapeHTML(displayName)}</strong>${mentorBadge}</div>`;
+  // Tlačítko pro smazání, pokud je zpráva naše
+  const deleteButtonHTML = isMe 
+    ? `<button class="delete-msg-btn" title="Delete message">&#128465;</button>` 
+    : "";
+
+  let headerHTML = `
+    <div class="message-header">
+      <strong>${escapeHTML(displayName)}</strong>
+      ${mentorBadge}
+      ${deleteButtonHTML}
+    </div>`;
 
   const codeText = getCodeFenceContent(data.text);
   let contentHTML = data.isCode || codeText !== null
@@ -201,6 +221,18 @@ function renderMessage(data) {
 
   messageElement.innerHTML = `${headerHTML}${contentHTML}<span class="timestamp">${data.time}</span>`;
  
+  // Navázání eventu na smazání po kliknutí na koš
+// Navázání eventu na smazání po kliknutí na koš (bez potvrzovacího popupu)
+if (isMe && data.id) {
+  const btn = messageElement.querySelector('.delete-msg-btn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      socket.emit('delete message', { id: data.id, username: lockedUsername });
+    });
+  }
+}
+
+  // Složení zprávy a vhození do chatu (tohle ti na konci chybělo)
   messageRow.appendChild(avatarElement);
   messageRow.appendChild(messageElement);
   messages.appendChild(messageRow);
@@ -289,3 +321,16 @@ function resizeAvatarFile(file) {
 }
 
 autoResizeMessageInput();
+
+// Přijetí požadavku na smazání od serveru
+socket.on("message deleted", (data) => {
+    console.log("Smaž zprávu s ID:", data.id); // Tady uvidíš, jestli event dorazil
+    const rowToRemove = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    
+    if (rowToRemove) {
+        rowToRemove.remove();
+        console.log("Element úspěšně odstraněn z HTML");
+    } else {
+        console.warn("Element s tímto ID nebyl v HTML nalezen!");
+    }
+});
