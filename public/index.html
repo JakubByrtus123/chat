@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
 </head>
 <body>
+    <button id="sound-toggle" class="dark-mode-btn sound-toggle-btn" type="button" aria-label="Toggle notification sounds" title="Notification sounds">&#128266;</button>
     <button id="dark-mode-toggle" class="dark-mode-btn" type="button" aria-label="Toggle dark mode">&#9790;</button>
 
     <main class="chat-container">
@@ -49,6 +50,7 @@
         </section>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/simple-notification-sounds@1.0.0/dist/simple-notification-sounds.umd.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>

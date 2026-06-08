@@ -8,6 +8,7 @@ const typingIndicator = document.getElementById("typing-indicator");
 const emojiTrigger = document.getElementById('emoji-trigger');
 const pickerContainer = document.getElementById('picker-container');
 const darkModeToggle = document.getElementById('dark-mode-toggle');
+const soundToggle = document.getElementById('sound-toggle');
 const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
@@ -15,6 +16,27 @@ const avatarInput = document.getElementById('avatar-input');
 
 let isMentorMode = false;
 let isCodeMode = false;
+let soundsEnabled = localStorage.getItem('chat_sounds') !== 'false';
+
+const notificationSounds = [
+    () => SimpleNotificationSounds.playAttention('short'),
+    () => SimpleNotificationSounds.playAttention('medium'),
+    () => SimpleNotificationSounds.playSuccess('short'),
+    () => SimpleNotificationSounds.playSuccess('medium'),
+    () => SimpleNotificationSounds.playAlert('short')
+];
+
+function playRandomNotificationSound() {
+    if (!soundsEnabled || typeof SimpleNotificationSounds === 'undefined') return;
+    const playSound = notificationSounds[Math.floor(Math.random() * notificationSounds.length)];
+    playSound();
+}
+
+function syncSoundToggle() {
+    soundToggle.classList.toggle('muted', !soundsEnabled);
+    soundToggle.setAttribute('aria-label', soundsEnabled ? 'Mute notification sounds' : 'Unmute notification sounds');
+    soundToggle.title = soundsEnabled ? 'Notification sounds on' : 'Notification sounds off';
+}
 
 function isDarkTheme() {
     return document.body.classList.contains('dark-theme');
@@ -117,6 +139,17 @@ document.addEventListener('click', (event) => {
     }
 });
 
+syncSoundToggle();
+
+soundToggle.addEventListener('click', () => {
+    soundsEnabled = !soundsEnabled;
+    localStorage.setItem('chat_sounds', soundsEnabled ? 'true' : 'false');
+    syncSoundToggle();
+    if (soundsEnabled) {
+        playRandomNotificationSound();
+    }
+});
+
 // Dark Mode logic
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
@@ -194,6 +227,9 @@ socket.on("chat history", (history) => {
 
 socket.on("chat message", (data) => {
   renderMessage(data);
+  if (soundsEnabled && data.name !== lockedUsername) {
+    playRandomNotificationSound();
+  }
 });
 
 function renderMessage(data) {

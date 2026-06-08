@@ -110,6 +110,14 @@ button:active {
     transform: translateY(0);
 }
 
+.sound-toggle-btn {
+    right: 68px;
+}
+
+.sound-toggle-btn.muted {
+    opacity: 0.45;
+}
+
 .dark-mode-btn {
     position: fixed;
     top: 18px;
@@ -560,6 +568,10 @@ textarea#message::placeholder {
         right: 10px;
         width: 38px;
         height: 38px;
+    }
+
+    .sound-toggle-btn {
+        right: 56px;
     }
 
     .chat-container {
