@@ -46,6 +46,8 @@ function saveAvatars(avatars) {
     }
 }
 
+const MESSAGE_HISTORY_LIMIT = 267;
+
 const savedMessages = loadMessages();
 const userAvatars = loadAvatars();
 
@@ -63,7 +65,7 @@ app.use(express.static('public'));
 
 io.on('connection', (socket) => {
     console.log('A user connected');
-    socket.emit('chat history', savedMessages);
+    socket.emit('chat history', savedMessages.slice(-MESSAGE_HISTORY_LIMIT));
 
     socket.on('get avatar', (data) => {
         if (data && data.username) {

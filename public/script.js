@@ -77,6 +77,7 @@ nameInput.title = "Username is locked for this browser";
 let currentAvatar = localStorage.getItem(`chat_avatar_${lockedUsername}`) || createAvatarDataUrl(lockedUsername);
 setAvatarButton(currentAvatar);
 
+const MESSAGE_HISTORY_LIMIT = 267;
 const messageDataMap = new Map();
 
 function applyAvatar(avatar) {
@@ -270,7 +271,8 @@ messageInput.addEventListener("keydown", (e) => {
 // Receive history
 socket.on("chat history", (history) => {
   if (!Array.isArray(history)) return;
-  history.forEach(msg => renderMessage(msg));
+  history.slice(-MESSAGE_HISTORY_LIMIT).forEach(msg => renderMessage(msg, { scroll: false }));
+  messages.scrollTop = messages.scrollHeight;
 });
 
 socket.on("chat message", (data) => {
@@ -405,7 +407,18 @@ function restoreMessageBody(body, data) {
 /* ------------------------------------------------------------------
    Render
    ------------------------------------------------------------------ */
-function renderMessage(data) {
+function trimOldMessages() {
+  while (messages.children.length > MESSAGE_HISTORY_LIMIT) {
+    const oldest = messages.firstElementChild;
+    if (!oldest) break;
+    const id = oldest.getAttribute('data-id');
+    if (id) messageDataMap.delete(id);
+    oldest.remove();
+  }
+}
+
+function renderMessage(data, options = {}) {
+  const { scroll = true } = options;
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row");
 
@@ -495,7 +508,10 @@ function renderMessage(data) {
   messageRow.appendChild(avatarElement);
   messageRow.appendChild(messageElement);
   messages.appendChild(messageRow);
-  messages.scrollTop = messages.scrollHeight;
+  trimOldMessages();
+  if (scroll) {
+    messages.scrollTop = messages.scrollHeight;
+  }
 }
 
 // Real-time edit sync
