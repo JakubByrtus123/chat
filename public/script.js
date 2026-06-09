@@ -33,6 +33,7 @@ function playRandomNotificationSound() {
 }
 
 function syncSoundToggle() {
+    if (!soundToggle) return;
     soundToggle.classList.toggle('muted', !soundsEnabled);
     soundToggle.setAttribute('aria-label', soundsEnabled ? 'Mute notification sounds' : 'Unmute notification sounds');
     soundToggle.title = soundsEnabled ? 'Notification sounds on' : 'Notification sounds off';
