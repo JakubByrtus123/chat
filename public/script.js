@@ -13,10 +13,14 @@ const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
 const avatarInput = document.getElementById('avatar-input');
+const imageButton = document.getElementById('image-button');
+const imageInput = document.getElementById('image-input');
+const imagePreview = document.getElementById('image-preview');
 
 let isMentorMode = false;
 let isCodeMode = false;
 let soundsEnabled = localStorage.getItem('chat_sounds') !== 'false';
+let pendingImage = null;
 
 let SimpleNotificationSounds = null;
 let soundLibraryLoaded = false;
@@ -121,6 +125,24 @@ avatarInput.addEventListener('change', () => {
         alert("Avatar image could not be loaded.");
     });
     avatarInput.value = "";
+});
+
+imageButton.addEventListener('click', () => {
+    imageInput.click();
+});
+
+imageInput.addEventListener('change', () => {
+    const file = imageInput.files && imageInput.files[0];
+    if (!file) return;
+
+    resizeMessageImageFile(file).then((imageData) => {
+        pendingImage = imageData;
+        renderImagePreview();
+        messageInput.focus();
+    }).catch(() => {
+        alert("Image could not be loaded.");
+    });
+    imageInput.value = "";
 });
 
 mentorToggle.addEventListener('click', () => {
@@ -237,7 +259,7 @@ socket.on('typing', (data) => {
 function sendMessage() {
   const rawText = messageInput.value;
   const text = isCodeMode ? wrapCodeFence(rawText) : rawText;
-  if (text.trim() === "") return;
+  if (text.trim() === "" && !pendingImage) return;
 
   socket.emit('typing', { name: lockedUsername, isTyping: false });
   const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -247,6 +269,7 @@ function sendMessage() {
     name: lockedUsername,
     avatar: currentAvatar,
     text: text,
+    image: pendingImage,
     time: timeString,
     isMentor: isMentorMode,
     isCode: isCodeMessage(text)
@@ -255,6 +278,7 @@ function sendMessage() {
   isCodeMode = false;
   codeToggle.classList.remove('active');
   messageInput.value = "";
+  clearPendingImage();
   autoResizeMessageInput();
   messageInput.focus();
 }
@@ -396,10 +420,10 @@ function startEdit(messageElement, data) {
 function restoreMessageBody(body, data) {
     const codeText = getCodeFenceContent(data.text);
     const isCode = data.isCode || codeText !== null;
-    const contentHTML = isCode || codeText !== null
+    const textHTML = isCode || codeText !== null
         ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
-        : `<div class="message-text">${escapeHTML(data.text)}</div>`;
-    body.innerHTML = contentHTML;
+        : data.text ? `<div class="message-text">${escapeHTML(data.text)}</div>` : "";
+    body.innerHTML = `${textHTML}${buildMessageImageHTML(data.image)}`;
 }
 
 /* ------------------------------------------------------------------
@@ -454,9 +478,10 @@ function renderMessage(data) {
     </div>`;
 
   const codeText = getCodeFenceContent(data.text);
-  let contentHTML = data.isCode || codeText !== null
+  const textHTML = data.isCode || codeText !== null
     ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
-    : `<div class="message-text">${escapeHTML(data.text)}</div>`;
+    : data.text ? `<div class="message-text">${escapeHTML(data.text)}</div>` : "";
+  const contentHTML = `${textHTML}${buildMessageImageHTML(data.image)}`;
 
   const editedHTML = data.edited
     ? `<span class="edited-tag" title="${data.editedAt || ''}">edited ${formatTime(data.editedAt)}</span>`
@@ -518,9 +543,10 @@ socket.on('message edited', (data) => {
     if (body) {
         const codeText = getCodeFenceContent(data.text);
         const isCode = data.isCode || codeText !== null;
-        const newContent = isCode
+        const textHTML = isCode
             ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
-            : `<div class="message-text">${escapeHTML(data.text)}</div>`;
+            : data.text ? `<div class="message-text">${escapeHTML(data.text)}</div>` : "";
+        const newContent = `${textHTML}${buildMessageImageHTML(cached && cached.image)}`;
         body.innerHTML = newContent;
     }
 
@@ -551,7 +577,7 @@ socket.on('message reactions', (data) => {
 });
 
 function escapeHTML(str) {
-    return str.replace(/[&<<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    return String(str ?? '').replace(/[&<<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 }
 
 function wrapCodeFence(text) {
@@ -571,6 +597,32 @@ function getCodeFenceContent(text) {
 
 function autoResizeMessageInput() {
     messageInput.scrollTop = messageInput.scrollHeight;
+}
+
+function renderImagePreview() {
+    if (!pendingImage) {
+        imagePreview.hidden = true;
+        imagePreview.innerHTML = "";
+        return;
+    }
+
+    imagePreview.hidden = false;
+    imagePreview.innerHTML = `
+        <img src="${pendingImage.src}" alt="">
+        <button type="button" class="remove-image-btn" aria-label="Remove attached image" title="Remove image">&times;</button>
+    `;
+    imagePreview.querySelector('.remove-image-btn').addEventListener('click', clearPendingImage);
+}
+
+function clearPendingImage() {
+    pendingImage = null;
+    renderImagePreview();
+}
+
+function buildMessageImageHTML(image) {
+    if (!image || !image.src || typeof image.src !== 'string' || !image.src.startsWith('data:image/')) return "";
+    const alt = image.name ? `Attached image: ${image.name}` : "Attached image";
+    return `<a class="message-image-link" href="${image.src}" target="_blank" rel="noopener"><img class="message-image" src="${image.src}" alt="${escapeHTML(alt)}"></a>`;
 }
 
 function setAvatarButton(src) {
@@ -624,6 +676,43 @@ function resizeAvatarFile(file) {
                 canvas.height = size;
                 context.drawImage(image, sx, sy, side, side, 0, 0, size, size);
                 resolve(canvas.toDataURL('image/jpeg', 0.82));
+            });
+            image.src = reader.result;
+        });
+        reader.readAsDataURL(file);
+    });
+}
+
+function resizeMessageImageFile(file) {
+    return new Promise((resolve, reject) => {
+        if (!file.type || !file.type.startsWith('image/')) {
+            reject();
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.addEventListener('error', reject);
+        reader.addEventListener('load', () => {
+            const image = new Image();
+            image.addEventListener('error', reject);
+            image.addEventListener('load', () => {
+                const maxSize = 1280;
+                const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+                const width = Math.max(1, Math.round(image.width * scale));
+                const height = Math.max(1, Math.round(image.height * scale));
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+
+                canvas.width = width;
+                canvas.height = height;
+                context.drawImage(image, 0, 0, width, height);
+
+                resolve({
+                    src: canvas.toDataURL('image/jpeg', 0.82),
+                    name: file.name || 'image',
+                    width,
+                    height
+                });
             });
             image.src = reader.result;
         });
