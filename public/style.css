@@ -385,6 +385,22 @@ textarea::-webkit-scrollbar-thumb {
     line-height: 1.45;
 }
 
+.message-image-link {
+    display: block;
+    margin-top: 6px;
+    line-height: 0;
+}
+
+.message-image {
+    display: block;
+    width: min(100%, 420px);
+    max-height: 360px;
+    object-fit: contain;
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.08);
+}
+
 .mentor-tag {
     display: inline-flex;
     align-items: center;
@@ -729,6 +745,71 @@ textarea#message::placeholder {
     background: var(--button-hover);
 }
 
+.image-btn {
+    border-color: transparent;
+    box-shadow: none;
+    background: transparent;
+}
+
+.image-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.image-btn:hover {
+    background: var(--button-hover);
+}
+
+.image-preview {
+    grid-column: 3 / 4;
+    grid-row: 2;
+    width: fit-content;
+    max-width: min(100%, 300px);
+    position: relative;
+    padding: 6px;
+    background: var(--panel-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: var(--soft-shadow);
+}
+
+.image-preview img {
+    display: block;
+    max-width: 240px;
+    max-height: 150px;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.remove-image-btn {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: var(--accent-text);
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    box-shadow: var(--soft-shadow);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.remove-image-btn:hover {
+    background: var(--accent-hover);
+}
+
 .mentor-btn {
     height: 48px;
     padding: 0 18px;
@@ -942,6 +1023,11 @@ textarea#message::placeholder {
         height: 48px;
         max-height: 48px;
     }
+
+    .image-preview {
+        grid-column: 1 / 5;
+        grid-row: 3;
+    }
 }
 
 @media (max-width: 640px) {
@@ -1032,6 +1118,12 @@ textarea#message::placeholder {
     .send-btn {
         grid-column: 3 / 4;
         grid-row: 2;
+    }
+
+    .image-preview {
+        grid-column: 1 / 4;
+        grid-row: 3;
+        max-width: 100%;
     }
 
     .icon-btn {

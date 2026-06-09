@@ -85,6 +85,9 @@ io.on('connection', (socket) => {
         if (userAvatars[data.name]) {
             data.avatar = userAvatars[data.name];
         }
+        if (data.image && (!data.image.src || !data.image.src.startsWith('data:image/') || data.image.src.length > 4_500_000)) {
+            delete data.image;
+        }
         if (!data.reactions) data.reactions = {};
         if (!data.edited) data.edited = false;
 
