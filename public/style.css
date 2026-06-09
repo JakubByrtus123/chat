@@ -36,8 +36,8 @@ html {
     --focus: rgba(56, 201, 255, 0.26);
     --hard-shadow: 0 24px 70px rgba(15, 35, 95, 0.14);
     --soft-shadow: 0 12px 30px rgba(15, 35, 95, 0.1);
-    
-    --theme-duration: 0.15s; 
+
+    --theme-duration: 0.15s;
     --theme-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -85,7 +85,7 @@ html {
 #name,
 textarea#message,
 h1 {
-    transition: 
+    transition:
         background-color var(--theme-duration) var(--theme-ease),
         color var(--theme-duration) var(--theme-ease),
         border-color var(--theme-duration) var(--theme-ease);
@@ -133,10 +133,6 @@ button:active {
 }
 
 .dark-mode-btn {
-    position: fixed;
-    top: 18px;
-    right: 18px;
-    z-index: 20;
     width: 42px;
     height: 42px;
     padding: 0;
@@ -149,9 +145,11 @@ button:active {
     box-shadow: var(--soft-shadow);
     cursor: pointer;
     font-size: 19px;
+    flex-shrink: 0;
 }
 
 .chat-container {
+    position: relative;
     width: min(100%, 940px);
     height: min(760px, calc(100vh - 96px));
     max-height: calc(100vh - 96px);
@@ -245,12 +243,13 @@ h1 {
 .messages {
     flex: 1;
     height: auto;
-    min-height: 360px;
+    min-height: 0;
     padding: clamp(12px, 2vw, 18px);
     display: flex;
     flex-direction: column;
     gap: 14px;
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--panel-bg-soft);
     border: 1px solid var(--line);
     border-radius: 6px;
@@ -312,7 +311,7 @@ textarea::-webkit-scrollbar-thumb {
     padding: 12px 14px;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 4px;
     align-self: flex-start;
     background: var(--message-other-bg);
     color: var(--message-other-text);
@@ -338,10 +337,48 @@ textarea::-webkit-scrollbar-thumb {
 .message-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
     font-size: 14px;
     font-weight: 900;
     width: 100%;
+    flex-wrap: wrap;
+}
+
+.message-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.message-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.msg-action-btn {
+    background: transparent;
+    border: none;
+    color: currentColor;
+    opacity: 0.4;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.msg-action-btn:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: none;
+}
+
+.my-message .msg-action-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 .message-text {
@@ -383,12 +420,188 @@ textarea::-webkit-scrollbar-thumb {
     overflow-wrap: anywhere;
 }
 
-.timestamp {
+.message-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.message-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     align-self: flex-end;
+}
+
+.timestamp {
     color: currentColor;
     opacity: 0.62;
     font-size: 11px;
     font-weight: 700;
+}
+
+.edited-tag {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+    opacity: 0.7;
+}
+
+.reactions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--button-bg);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.1s, transform 0.1s;
+    color: var(--text);
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.reaction-pill.reacted {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+}
+
+.reaction-pill:hover {
+    transform: translateY(-1px);
+}
+
+.reaction-emoji {
+    font-size: 14px;
+}
+
+.reaction-count {
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.add-reaction-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    color: var(--text-muted);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.add-reaction-btn:hover {
+    background: var(--button-hover);
+    color: var(--text);
+    transform: none;
+}
+
+.reaction-picker-mini {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px;
+    background: var(--panel-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: var(--soft-shadow);
+    z-index: 10;
+}
+
+.reaction-picker-mini button {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.reaction-picker-mini button:hover {
+    background: var(--button-hover);
+    transform: none;
+}
+
+.edit-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.edit-textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    background: var(--panel-bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    outline: none;
+}
+
+.edit-textarea:focus {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 3px var(--focus);
+}
+
+.edit-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.edit-save-btn,
+.edit-cancel-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.edit-save-btn {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+}
+
+.edit-save-btn:hover {
+    background: var(--accent-hover);
+    transform: none;
+}
+
+.edit-cancel-btn {
+    background: var(--button-bg);
+    color: var(--text);
+}
+
+.edit-cancel-btn:hover {
+    background: var(--button-hover);
+    transform: none;
 }
 
 .typing-indicator {
@@ -591,14 +804,8 @@ textarea#message::placeholder {
     .chat-container {
         width: min(92vw, 980px);
     }
-
-    .messages {
-        min-height: 0;
-    }
 }
 
-/* FIXED: 900px breakpoint now uses a clean two-row grid instead of
-   overlapping #name and .mentor-btn on the same column. */
 @media (max-width: 900px) {
     body {
         padding: 22px;
@@ -635,13 +842,6 @@ textarea#message::placeholder {
         padding: 0;
     }
 
-    .dark-mode-btn {
-        top: 10px;
-        right: 10px;
-        width: 38px;
-        height: 38px;
-    }
-
     .chat-container {
         width: 100%;
         height: 100dvh;
@@ -655,7 +855,7 @@ textarea#message::placeholder {
     .brand-lockup {
         width: 100%;
         justify-content: center;
-        padding-right: 44px;
+        padding-right: 0;
     }
 
     .brand-mark {
@@ -735,6 +935,11 @@ textarea#message::placeholder {
     .message-input-wrapper {
         gap: 5px;
         padding-inline: 4px;
+    }
+
+    .reaction-picker-mini button {
+        font-size: 16px;
+        padding: 2px 4px;
     }
 }
 

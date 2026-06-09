@@ -18,18 +18,42 @@ let isMentorMode = false;
 let isCodeMode = false;
 let soundsEnabled = localStorage.getItem('chat_sounds') !== 'false';
 
-const notificationSounds = [
-    () => SimpleNotificationSounds.playAttention('short'),
-    () => SimpleNotificationSounds.playAttention('medium'),
-    () => SimpleNotificationSounds.playSuccess('short'),
-    () => SimpleNotificationSounds.playSuccess('medium'),
-    () => SimpleNotificationSounds.playAlert('short')
+let SimpleNotificationSounds = null;
+let soundLibraryLoaded = false;
+
+function loadSoundLibrary() {
+    if (soundLibraryLoaded) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/simple-notification-sounds@1.0.0/dist/simple-notification-sounds.umd.js';
+        script.onload = () => {
+            SimpleNotificationSounds = window.SimpleNotificationSounds;
+            soundLibraryLoaded = true;
+            resolve();
+        };
+        script.onerror = () => {
+            soundLibraryLoaded = true;
+            reject();
+        };
+        document.head.appendChild(script);
+    });
+}
+
+const notificationSoundConfigs = [
+    { method: 'playAttention', duration: 'short' },
+    { method: 'playAttention', duration: 'medium' },
+    { method: 'playSuccess', duration: 'short' },
+    { method: 'playSuccess', duration: 'medium' },
+    { method: 'playAlert', duration: 'short' }
 ];
 
 function playRandomNotificationSound() {
-    if (!soundsEnabled || typeof SimpleNotificationSounds === 'undefined') return;
-    const playSound = notificationSounds[Math.floor(Math.random() * notificationSounds.length)];
-    playSound();
+    if (!soundsEnabled) return;
+    loadSoundLibrary().then(() => {
+        if (!SimpleNotificationSounds) return;
+        const cfg = notificationSoundConfigs[Math.floor(Math.random() * notificationSoundConfigs.length)];
+        SimpleNotificationSounds[cfg.method](cfg.duration);
+    }).catch(() => {});
 }
 
 function syncSoundToggle() {
@@ -53,6 +77,8 @@ nameInput.title = "Username is locked for this browser";
 let currentAvatar = localStorage.getItem(`chat_avatar_${lockedUsername}`) || createAvatarDataUrl(lockedUsername);
 setAvatarButton(currentAvatar);
 
+const messageDataMap = new Map();
+
 function applyAvatar(avatar) {
     currentAvatar = avatar;
     localStorage.setItem(`chat_avatar_${lockedUsername}`, currentAvatar);
@@ -74,7 +100,6 @@ socket.on('connect', () => {
 
 socket.on('user avatar', (data) => {
     if (!data || data.username !== lockedUsername) return;
-
     if (data.avatar) {
         applyAvatar(data.avatar);
     } else if (isCustomAvatar(currentAvatar)) {
@@ -111,8 +136,7 @@ codeToggle.addEventListener('click', () => {
 });
 
 /* ------------------------------------------------------------------
-   Emoji Picker — loaded dynamically with fallback CDNs so the chat
-   keeps working even if one source is down.
+   Emoji Picker
    ------------------------------------------------------------------ */
 let picker = null;
 
@@ -125,6 +149,9 @@ emojiTrigger.addEventListener('click', (e) => {
 document.addEventListener('click', (event) => {
     if (!pickerContainer.contains(event.target) && !emojiTrigger.contains(event.target)) {
         pickerContainer.style.display = 'none';
+    }
+    if (!event.target.closest('.reactions-bar')) {
+        document.querySelectorAll('.reaction-picker-mini').forEach(p => p.style.display = 'none');
     }
 });
 
@@ -173,7 +200,7 @@ soundToggle.addEventListener('click', () => {
     }
 });
 
-// Dark Mode logic
+// Dark Mode
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
     darkModeToggle.innerHTML = '&#9788;';
@@ -211,7 +238,7 @@ function sendMessage() {
   const rawText = messageInput.value;
   const text = isCodeMode ? wrapCodeFence(rawText) : rawText;
   if (text.trim() === "") return;
- 
+
   socket.emit('typing', { name: lockedUsername, isTyping: false });
   const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -224,14 +251,14 @@ function sendMessage() {
     isMentor: isMentorMode,
     isCode: isCodeMessage(text)
   });
- 
+
   isCodeMode = false;
   codeToggle.classList.remove('active');
   messageInput.value = "";
   autoResizeMessageInput();
   messageInput.focus();
 }
- 
+
 sendButton.addEventListener("click", sendMessage);
 messageInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -239,11 +266,11 @@ messageInput.addEventListener("keydown", (e) => {
         sendMessage();
     }
 });
- 
-// Receive message
+
+// Receive history
 socket.on("chat history", (history) => {
   if (!Array.isArray(history)) return;
-  history.forEach(renderMessage);
+  history.forEach(msg => renderMessage(msg));
 });
 
 socket.on("chat message", (data) => {
@@ -253,10 +280,135 @@ socket.on("chat message", (data) => {
   }
 });
 
+/* ------------------------------------------------------------------
+   Helpers
+   ------------------------------------------------------------------ */
+function formatTime(isoString) {
+    if (!isoString) return '';
+    try {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+        return '';
+    }
+}
+
+/* ------------------------------------------------------------------
+   Reactions
+   ------------------------------------------------------------------ */
+function buildReactionsInnerHTML(reactions) {
+    return Object.entries(reactions || {}).map(([emoji, users]) => {
+        const count = users.length;
+        const hasReacted = users.includes(lockedUsername);
+        return `<button class="reaction-pill ${hasReacted ? 'reacted' : ''}" data-emoji="${emoji}" title="${users.join(', ')}">
+            <span class="reaction-emoji">${emoji}</span>
+            <span class="reaction-count">${count}</span>
+        </button>`;
+    }).join('') + `
+        <button class="add-reaction-btn" title="Add reaction">+</button>
+        <div class="reaction-picker-mini" style="display:none">
+            <button data-emoji="👍">👍</button>
+            <button data-emoji="❤️">❤️</button>
+            <button data-emoji="😂">😂</button>
+            <button data-emoji="😮">😮</button>
+            <button data-emoji="🎉">🎉</button>
+        </div>`;
+}
+
+function handleReactionClick(e, messageId) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    if (btn.classList.contains('reaction-pill')) {
+        const emoji = btn.dataset.emoji;
+        socket.emit('reaction', { messageId, emoji, username: lockedUsername });
+    } else if (btn.classList.contains('add-reaction-btn')) {
+        const picker = btn.parentElement.querySelector('.reaction-picker-mini');
+        const isHidden = picker.style.display === 'none' || !picker.style.display;
+        document.querySelectorAll('.reaction-picker-mini').forEach(p => p.style.display = 'none');
+        picker.style.display = isHidden ? 'flex' : 'none';
+    } else if (btn.parentElement && btn.parentElement.classList.contains('reaction-picker-mini')) {
+        const emoji = btn.dataset.emoji;
+        socket.emit('reaction', { messageId, emoji, username: lockedUsername });
+        btn.parentElement.style.display = 'none';
+    }
+}
+
+/* ------------------------------------------------------------------
+   Edit
+   ------------------------------------------------------------------ */
+function startEdit(messageElement, data) {
+    const body = messageElement.querySelector('.message-body');
+    const isCode = data.isCode || getCodeFenceContent(data.text) !== null;
+    const editText = isCode ? (getCodeFenceContent(data.text) ?? data.text) : data.text;
+
+    body.innerHTML = `
+        <div class="edit-area">
+            <textarea class="edit-textarea" rows="2">${escapeHTML(editText)}</textarea>
+            <div class="edit-actions">
+                <button class="edit-save-btn">Save</button>
+                <button class="edit-cancel-btn">Cancel</button>
+            </div>
+        </div>
+    `;
+
+    const textarea = body.querySelector('.edit-textarea');
+    textarea.focus();
+
+    body.querySelector('.edit-save-btn').addEventListener('click', () => {
+        const newText = textarea.value;
+        if (!newText.trim()) return;
+        const finalText = isCode ? wrapCodeFence(newText) : newText;
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const cached = messageDataMap.get(data.id);
+        if (cached) {
+            cached.text = finalText;
+            cached.edited = true;
+            cached.editedAt = now.toISOString();
+        }
+        restoreMessageBody(body, cached || { ...data, text: finalText, edited: true, editedAt: now.toISOString() });
+
+        const meta = messageElement.querySelector('.message-meta');
+        if (meta) {
+            let editedTag = meta.querySelector('.edited-tag');
+            if (!editedTag) {
+                editedTag = document.createElement('span');
+                editedTag.className = 'edited-tag';
+                const ts = meta.querySelector('.timestamp');
+                if (ts) meta.insertBefore(editedTag, ts);
+                else meta.appendChild(editedTag);
+            }
+            editedTag.textContent = `edited ${timeStr}`;
+            editedTag.title = now.toISOString();
+        }
+
+        socket.emit('edit message', { id: data.id, text: finalText, username: lockedUsername });
+    });
+
+    body.querySelector('.edit-cancel-btn').addEventListener('click', () => {
+        restoreMessageBody(body, data);
+    });
+}
+
+function restoreMessageBody(body, data) {
+    const codeText = getCodeFenceContent(data.text);
+    const isCode = data.isCode || codeText !== null;
+    const contentHTML = isCode || codeText !== null
+        ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
+        : `<div class="message-text">${escapeHTML(data.text)}</div>`;
+    body.innerHTML = contentHTML;
+}
+
+/* ------------------------------------------------------------------
+   Render
+   ------------------------------------------------------------------ */
 function renderMessage(data) {
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row");
-  
+
   if (data.id) {
     messageRow.setAttribute('data-id', data.id);
   } else {
@@ -265,12 +417,14 @@ function renderMessage(data) {
     messageRow.setAttribute('data-id', fallbackId);
   }
 
+  messageDataMap.set(data.id, data);
+
   const messageElement = document.createElement("div");
   messageElement.classList.add("message");
-  
+
   const currentUserName = lockedUsername;
   const isMe = data.name === currentUserName;
-  
+
   if (isMe) {
     messageRow.classList.add("my-message-row");
     messageElement.classList.add("my-message");
@@ -280,15 +434,23 @@ function renderMessage(data) {
   const displayName = isMe ? "You" : data.name;
   const mentorBadge = data.isMentor ? `<span class="mentor-tag">Mentor &#10022;</span>` : "";
 
-  const deleteButtonHTML = isMe 
-    ? `<button class="delete-msg-btn" title="Delete message">&#128465;</button>` 
+  const editButtonHTML = isMe
+    ? `<button class="msg-action-btn edit-msg-btn" title="Edit message">&#9998;</button>`
+    : "";
+  const deleteButtonHTML = isMe
+    ? `<button class="msg-action-btn delete-msg-btn" title="Delete message">&#128465;</button>`
     : "";
 
   let headerHTML = `
     <div class="message-header">
-      <strong>${escapeHTML(displayName)}</strong>
-      ${mentorBadge}
-      ${deleteButtonHTML}
+      <div class="message-header-left">
+        <strong>${escapeHTML(displayName)}</strong>
+        ${mentorBadge}
+      </div>
+      <div class="message-actions">
+        ${editButtonHTML}
+        ${deleteButtonHTML}
+      </div>
     </div>`;
 
   const codeText = getCodeFenceContent(data.text);
@@ -296,27 +458,97 @@ function renderMessage(data) {
     ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
     : `<div class="message-text">${escapeHTML(data.text)}</div>`;
 
+  const editedHTML = data.edited
+    ? `<span class="edited-tag" title="${data.editedAt || ''}">edited ${formatTime(data.editedAt)}</span>`
+    : '';
+
+  messageElement.innerHTML = `
+    ${headerHTML}
+    <div class="message-body">${contentHTML}</div>
+    <div class="message-footer">
+      <div class="message-meta">${editedHTML}<span class="timestamp">${data.time}</span></div>
+      <div class="reactions-bar" data-id="${data.id}">
+        ${buildReactionsInnerHTML(data.reactions)}
+      </div>
+    </div>
+  `;
+
+  if (isMe && data.id) {
+    const editBtn = messageElement.querySelector('.edit-msg-btn');
+    const deleteBtn = messageElement.querySelector('.delete-msg-btn');
+    if (editBtn) editBtn.addEventListener('click', () => startEdit(messageElement, messageDataMap.get(data.id)));
+    if (deleteBtn) deleteBtn.addEventListener('click', () => {
+      socket.emit('delete message', { id: data.id, username: lockedUsername });
+    });
+  }
+
+  const reactionsBar = messageElement.querySelector('.reactions-bar');
+  if (reactionsBar) {
+    reactionsBar.addEventListener('click', (e) => handleReactionClick(e, data.id));
+  }
+
   const avatarElement = document.createElement("img");
   avatarElement.className = "message-avatar";
   avatarElement.alt = "";
   avatarElement.src = data.avatar || createAvatarDataUrl(data.name || "Anonymous");
-
-  messageElement.innerHTML = `${headerHTML}${contentHTML}<span class="timestamp">${data.time}</span>`;
- 
-  if (isMe && data.id) {
-    const btn = messageElement.querySelector('.delete-msg-btn');
-    if (btn) {
-      btn.addEventListener('click', () => {
-        socket.emit('delete message', { id: data.id, username: lockedUsername });
-      });
-    }
-  }
 
   messageRow.appendChild(avatarElement);
   messageRow.appendChild(messageElement);
   messages.appendChild(messageRow);
   messages.scrollTop = messages.scrollHeight;
 }
+
+// Real-time edit sync
+socket.on('message edited', (data) => {
+    const cached = messageDataMap.get(data.id);
+    if (cached) {
+        cached.text = data.text;
+        cached.edited = true;
+        cached.editedAt = data.editedAt;
+        if (data.isCode !== undefined) cached.isCode = data.isCode;
+    }
+
+    const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    if (!row) return;
+
+    const msg = row.querySelector('.message');
+    const body = msg.querySelector('.message-body');
+    const meta = msg.querySelector('.message-meta');
+
+    if (body) {
+        const codeText = getCodeFenceContent(data.text);
+        const isCode = data.isCode || codeText !== null;
+        const newContent = isCode
+            ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
+            : `<div class="message-text">${escapeHTML(data.text)}</div>`;
+        body.innerHTML = newContent;
+    }
+
+    if (meta) {
+        let editedTag = meta.querySelector('.edited-tag');
+        if (!editedTag) {
+            editedTag = document.createElement('span');
+            editedTag.className = 'edited-tag';
+            const ts = meta.querySelector('.timestamp');
+            if (ts) meta.insertBefore(editedTag, ts);
+            else meta.appendChild(editedTag);
+        }
+        editedTag.textContent = `edited ${formatTime(data.editedAt)}`;
+        editedTag.title = data.editedAt || '';
+    }
+});
+
+// Real-time reaction sync — ONLY replaces innerHTML, listener from renderMessage persists
+socket.on('message reactions', (data) => {
+    const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    if (!row) return;
+
+    const reactionsBar = row.querySelector('.reactions-bar');
+    if (!reactionsBar) return;
+
+    reactionsBar.innerHTML = buildReactionsInnerHTML(data.reactions);
+    // NO new addEventListener here — the one attached in renderMessage is still active
+});
 
 function escapeHTML(str) {
     return str.replace(/[&<<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));

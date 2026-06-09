@@ -7,7 +7,7 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const messagesFile = path.join(__dirname, 'messages.json');
-const avatarsFile = path.join(__dirname, 'avatars.json'); // Soubor pro trvalé uložení profilovek
+const avatarsFile = path.join(__dirname, 'avatars.json');
 
 function loadMessages() {
     try {
@@ -28,7 +28,6 @@ function saveMessages(messages) {
     }
 }
 
-// Načtení profilovek ze souboru při startu
 function loadAvatars() {
     try {
         if (!fs.existsSync(avatarsFile)) return {};
@@ -39,7 +38,6 @@ function loadAvatars() {
     }
 }
 
-// Uložení profilovek do souboru
 function saveAvatars(avatars) {
     try {
         fs.writeFileSync(avatarsFile, JSON.stringify(avatars, null, 2));
@@ -49,22 +47,24 @@ function saveAvatars(avatars) {
 }
 
 const savedMessages = loadMessages();
-const userAvatars = loadAvatars(); // Načteme uložené profilovky z disku
+const userAvatars = loadAvatars();
+
+// Normalize old messages
+savedMessages.forEach(m => {
+    if (!m.reactions) m.reactions = {};
+    if (!m.edited) m.edited = false;
+});
 
 const io = new Server(server, {
-    cors: {
-        origin: '*'
-    }
+    cors: { origin: '*' }
 });
 
 app.use(express.static('public'));
 
 io.on('connection', (socket) => {
-
     console.log('A user connected');
     socket.emit('chat history', savedMessages);
 
-    // Klient si po připojení vyžádá profilovku ze serveru
     socket.on('get avatar', (data) => {
         if (data && data.username) {
             socket.emit('user avatar', {
@@ -74,35 +74,80 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Uložení nové profilovky na serveru a zápis na disk
     socket.on('update avatar', (data) => {
         if (data.username && data.avatar) {
             userAvatars[data.username] = data.avatar;
-            saveAvatars(userAvatars); // Uložíme do avatars.json
+            saveAvatars(userAvatars);
         }
     });
 
-    // Zpracování nové zprávy
     socket.on('chat message', (data) => {
         if (userAvatars[data.name]) {
             data.avatar = userAvatars[data.name];
         }
-        
+        if (!data.reactions) data.reactions = {};
+        if (!data.edited) data.edited = false;
+
         savedMessages.push(data);
         saveMessages(savedMessages);
         io.emit('chat message', data);
     });
 
-    // Mazání zpráv
+    socket.on('edit message', (data) => {
+        const index = savedMessages.findIndex(m => m.id === data.id);
+        if (index !== -1 && savedMessages[index].name === data.username) {
+            savedMessages[index].text = data.text;
+            savedMessages[index].edited = true;
+            savedMessages[index].editedAt = new Date().toISOString();
+            savedMessages[index].isCode = /^```[\s\S]*```$/.test(data.text.trim());
+            saveMessages(savedMessages);
+            io.emit('message edited', {
+                id: data.id,
+                text: data.text,
+                edited: true,
+                editedAt: savedMessages[index].editedAt,
+                isCode: savedMessages[index].isCode
+            });
+        }
+    });
+
+    socket.on('reaction', (data) => {
+        const index = savedMessages.findIndex(m => m.id === data.messageId);
+        if (index === -1) return;
+
+        const msg = savedMessages[index];
+        if (!msg.reactions) msg.reactions = {};
+
+        const emoji = data.emoji;
+        const username = data.username;
+
+        if (!msg.reactions[emoji]) {
+            msg.reactions[emoji] = [];
+        }
+
+        const idx = msg.reactions[emoji].indexOf(username);
+        if (idx === -1) {
+            msg.reactions[emoji].push(username);
+        } else {
+            msg.reactions[emoji].splice(idx, 1);
+            if (msg.reactions[emoji].length === 0) {
+                delete msg.reactions[emoji];
+            }
+        }
+
+        saveMessages(savedMessages);
+        io.emit('message reactions', {
+            id: data.messageId,
+            reactions: msg.reactions
+        });
+    });
+
     socket.on('delete message', (data) => {
         const index = savedMessages.findIndex(m => m.id === data.id);
-        
-        if (index !== -1) {
-            if (savedMessages[index].name === data.username) {
-                savedMessages.splice(index, 1);
-                saveMessages(savedMessages);
-                io.emit('message deleted', { id: data.id });
-            }
+        if (index !== -1 && savedMessages[index].name === data.username) {
+            savedMessages.splice(index, 1);
+            saveMessages(savedMessages);
+            io.emit('message deleted', { id: data.id });
         }
     });
 

@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leagues Chat</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 289 200'%3E%3Cpath d='M285.468 92.0105L239.253 45.7961L196.594 3.13672C192.412-1.04557 185.615-1.04557 181.433 3.13672L84.9268 99.6432 114.726 129.442 144.315 99.6432 188.857 55.1017 209.873 76.1178 233.398 99.6432 188.857 144.185 174.01 129.337 144.315 159.136 181.329 196.15C185.511 200.332 192.307 200.332 196.489 196.15L238.208 154.431 285.363 107.276C289.65 103.094 289.65 96.1928 285.468 92.0105Z' fill='%233844FF'/%3E%3Cpath d='M174.114 69.8443L203.913 99.6432 129.677 173.879 107.407 196.15C103.224 200.332 96.428 200.332 92.2457 196.15L3.37198 107.276C2.53552 106.439 1.80362 105.394 1.28083 104.348-0.914872 100.271-0.287541 95.1472 3.16285 91.6968L24.9108 70.4717 92.1412 3.13672C96.3234-1.04557 103.12-1.04557 107.302 3.13672L144.315 40.15 114.516 69.9489 99.6693 55.1017 55.4415 99.434 99.9829 144.08 121.208 122.855 174.114 69.8443Z' fill='%2338C9FF'/%3E%3C/svg%3E">
 </head>
 <body>
-    <button id="dark-mode-toggle" class="dark-mode-btn" type="button" aria-label="Toggle dark mode">&#9790;</button>
-
     <main class="chat-container">
         <header class="chat-header">
             <div class="header-spacer" aria-hidden="true"></div>
@@ -23,6 +22,7 @@
                 </div>
             </div>
             <div class="header-actions">
+                <button id="dark-mode-toggle" class="dark-mode-btn" type="button" aria-label="Toggle dark mode">&#9790;</button>
                 <button id="sound-toggle" class="icon-btn sound-toggle-btn" type="button" aria-label="Mute notification sounds" title="Notification sounds on">
                     <svg class="sound-icon sound-icon-on" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M11 5 6 9H3v6h3l5 4V5Z"></path>
@@ -43,11 +43,11 @@
         <section class="input-area">
             <button id="avatar-button" class="avatar-button" type="button" title="Change profile picture" aria-label="Change profile picture"></button>
             <input id="avatar-input" type="file" accept="image/*" hidden>
-            <input id="name" type="text" placeholder="Your name" aria-label="Your name" readonly>
+            <input id="name" type="text" placeholder="Your name" aria-label="Your name" readonly autocomplete="off">
             
             <div class="message-input-wrapper">
                 <button id="code-toggle" class="format-btn icon-btn" type="button" title="Format as code" aria-label="Format as code">&lt;/&gt;</button>
-                <textarea id="message" rows="1" placeholder="Type a message" aria-label="Message"></textarea>
+                <textarea id="message" rows="1" placeholder="Type a message" aria-label="Message" autocomplete="off"></textarea>
                 <button id="emoji-trigger" class="icon-btn" type="button" title="Emoji" aria-label="Emoji">&#128512;</button> 
             </div>
 
@@ -63,7 +63,6 @@
         </section>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/simple-notification-sounds@1.0.0/dist/simple-notification-sounds.umd.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="script.js"></script>
 </body>
