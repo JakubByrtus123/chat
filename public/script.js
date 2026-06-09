@@ -43,12 +43,6 @@ function isDarkTheme() {
     return document.body.classList.contains('dark-theme');
 }
 
-function syncPickerTheme() {
-    if (typeof picker !== 'undefined') {
-        picker.update({ theme: isDarkTheme() ? 'dark' : 'light' });
-    }
-}
-
 const urlUsername = new URLSearchParams(window.location.search).get('user');
 const defaultUsername = `User-${Math.floor(1000 + Math.random() * 9000)}`;
 const lockedUsername = urlUsername || localStorage.getItem('chat_username') || defaultUsername;
@@ -116,21 +110,15 @@ codeToggle.addEventListener('click', () => {
     messageInput.focus();
 });
 
-// Emoji Picker
-const picker = new EmojiMart.Picker({
-    theme: isDarkTheme() ? 'dark' : 'light',
-    set: 'native',
-    onEmojiSelect: (emoji) => {
-        messageInput.value += emoji.native;
-        messageInput.focus();
-        pickerContainer.style.display = 'none'; 
-    }
-});
-pickerContainer.appendChild(picker);
-syncPickerTheme();
+/* ------------------------------------------------------------------
+   Emoji Picker — loaded dynamically with fallback CDNs so the chat
+   keeps working even if one source is down.
+   ------------------------------------------------------------------ */
+let picker = null;
 
 emojiTrigger.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (!picker) return;
     pickerContainer.style.display = pickerContainer.style.display === 'none' ? 'block' : 'none';
 });
 
@@ -139,6 +127,40 @@ document.addEventListener('click', (event) => {
         pickerContainer.style.display = 'none';
     }
 });
+
+async function loadEmojiPicker() {
+    const sources = [
+        'https://esm.sh/emoji-picker-element@1',
+        'https://cdn.jsdelivr.net/npm/emoji-picker-element@1/dist/index.js',
+        'https://unpkg.com/emoji-picker-element@1/dist/index.js'
+    ];
+
+    for (const src of sources) {
+        try {
+            await import(src);
+            if (customElements.get('emoji-picker')) {
+                initPicker();
+                return;
+            }
+        } catch (e) {
+            console.warn(`Emoji picker source failed: ${src}`, e);
+        }
+    }
+    console.error('All emoji picker sources failed');
+}
+
+function initPicker() {
+    picker = document.createElement('emoji-picker');
+    picker.setAttribute('locale', 'en');
+    picker.addEventListener('emoji-click', (event) => {
+        messageInput.value += event.detail.unicode;
+        messageInput.focus();
+        pickerContainer.style.display = 'none';
+    });
+    pickerContainer.appendChild(picker);
+}
+
+loadEmojiPicker();
 
 syncSoundToggle();
 
@@ -155,7 +177,6 @@ soundToggle.addEventListener('click', () => {
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
     darkModeToggle.innerHTML = '&#9788;';
-    syncPickerTheme();
 }
 
 darkModeToggle.addEventListener('click', () => {
@@ -163,10 +184,9 @@ darkModeToggle.addEventListener('click', () => {
     const isDark = document.body.classList.contains('dark-theme');
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     darkModeToggle.innerHTML = isDark ? '&#9788;' : '&#9790;';
-    syncPickerTheme();
 });
 
-// Typing indicator updated to English
+// Typing indicator
 let typingTimeout;
 messageInput.addEventListener('input', () => {
     autoResizeMessageInput();
@@ -196,7 +216,7 @@ function sendMessage() {
   const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   socket.emit("chat message", {
-    id: Date.now() + Math.random().toString(36).substr(2, 9), // Generování unikátního ID zprávy
+    id: Date.now() + Math.random().toString(36).substr(2, 9),
     name: lockedUsername,
     avatar: currentAvatar,
     text: text,
@@ -220,7 +240,7 @@ messageInput.addEventListener("keydown", (e) => {
     }
 });
  
-// Receive message - "You" used instead of "Vy"
+// Receive message
 socket.on("chat history", (history) => {
   if (!Array.isArray(history)) return;
   history.forEach(renderMessage);
@@ -237,7 +257,6 @@ function renderMessage(data) {
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row");
   
-  // Bezpečné přiřazení ID řádku zprávy
   if (data.id) {
     messageRow.setAttribute('data-id', data.id);
   } else {
@@ -261,7 +280,6 @@ function renderMessage(data) {
   const displayName = isMe ? "You" : data.name;
   const mentorBadge = data.isMentor ? `<span class="mentor-tag">Mentor &#10022;</span>` : "";
 
-  // Tlačítko pro smazání, pokud je zpráva naše
   const deleteButtonHTML = isMe 
     ? `<button class="delete-msg-btn" title="Delete message">&#128465;</button>` 
     : "";
@@ -285,18 +303,15 @@ function renderMessage(data) {
 
   messageElement.innerHTML = `${headerHTML}${contentHTML}<span class="timestamp">${data.time}</span>`;
  
-  // Navázání eventu na smazání po kliknutí na koš
-// Navázání eventu na smazání po kliknutí na koš (bez potvrzovacího popupu)
-if (isMe && data.id) {
-  const btn = messageElement.querySelector('.delete-msg-btn');
-  if (btn) {
-    btn.addEventListener('click', () => {
-      socket.emit('delete message', { id: data.id, username: lockedUsername });
-    });
+  if (isMe && data.id) {
+    const btn = messageElement.querySelector('.delete-msg-btn');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        socket.emit('delete message', { id: data.id, username: lockedUsername });
+      });
+    }
   }
-}
 
-  // Složení zprávy a vhození do chatu (tohle ti na konci chybělo)
   messageRow.appendChild(avatarElement);
   messageRow.appendChild(messageElement);
   messages.appendChild(messageRow);
@@ -304,7 +319,7 @@ if (isMe && data.id) {
 }
 
 function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    return str.replace(/[&<<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 }
 
 function wrapCodeFence(text) {
@@ -386,15 +401,9 @@ function resizeAvatarFile(file) {
 
 autoResizeMessageInput();
 
-// Přijetí požadavku na smazání od serveru
 socket.on("message deleted", (data) => {
-    console.log("Smaž zprávu s ID:", data.id); // Tady uvidíš, jestli event dorazil
     const rowToRemove = document.querySelector(`.message-row[data-id="${data.id}"]`);
-    
     if (rowToRemove) {
         rowToRemove.remove();
-        console.log("Element úspěšně odstraněn z HTML");
-    } else {
-        console.warn("Element s tímto ID nebyl v HTML nalezen!");
     }
 });
