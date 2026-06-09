@@ -13,10 +13,16 @@ const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
 const avatarInput = document.getElementById('avatar-input');
+const fileTrigger = document.getElementById('file-trigger');
+const fileInput = document.getElementById('file-input');
+const attachmentChip = document.getElementById('attachment-chip');
+const attachmentName = document.getElementById('attachment-name');
+const attachmentClear = document.getElementById('attachment-clear');
 
 let isMentorMode = false;
 let isCodeMode = false;
 let soundsEnabled = localStorage.getItem('chat_sounds') !== 'false';
+let pendingAttachment = null;
 
 let SimpleNotificationSounds = null;
 let soundLibraryLoaded = false;
@@ -136,6 +142,43 @@ codeToggle.addEventListener('click', () => {
 });
 
 /* ------------------------------------------------------------------
+   File attachments
+   ------------------------------------------------------------------ */
+fileTrigger.addEventListener('click', () => {
+    fileInput.click();
+});
+
+fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+        alert("File is too large. Max 5MB.");
+        fileInput.value = "";
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+        pendingAttachment = {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: reader.result
+        };
+        attachmentName.textContent = file.name;
+        attachmentChip.style.display = 'inline-flex';
+    });
+    reader.readAsDataURL(file);
+    fileInput.value = "";
+});
+
+attachmentClear.addEventListener('click', () => {
+    pendingAttachment = null;
+    attachmentChip.style.display = 'none';
+});
+
+/* ------------------------------------------------------------------
    Emoji Picker
    ------------------------------------------------------------------ */
 let picker = null;
@@ -237,12 +280,12 @@ socket.on('typing', (data) => {
 function sendMessage() {
   const rawText = messageInput.value;
   const text = isCodeMode ? wrapCodeFence(rawText) : rawText;
-  if (text.trim() === "") return;
+  if (text.trim() === "" && !pendingAttachment) return;
 
   socket.emit('typing', { name: lockedUsername, isTyping: false });
   const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  socket.emit("chat message", {
+  const payload = {
     id: Date.now() + Math.random().toString(36).substr(2, 9),
     name: lockedUsername,
     avatar: currentAvatar,
@@ -250,7 +293,15 @@ function sendMessage() {
     time: timeString,
     isMentor: isMentorMode,
     isCode: isCodeMessage(text)
-  });
+  };
+
+  if (pendingAttachment) {
+    payload.file = pendingAttachment;
+    pendingAttachment = null;
+    attachmentChip.style.display = 'none';
+  }
+
+  socket.emit("chat message", payload);
 
   isCodeMode = false;
   codeToggle.classList.remove('active');
@@ -291,6 +342,14 @@ function formatTime(isoString) {
     } catch (e) {
         return '';
     }
+}
+
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
 /* ------------------------------------------------------------------
@@ -394,17 +453,38 @@ function startEdit(messageElement, data) {
 }
 
 function restoreMessageBody(body, data) {
+    let html = '';
     const codeText = getCodeFenceContent(data.text);
     const isCode = data.isCode || codeText !== null;
-    const contentHTML = isCode || codeText !== null
-        ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
-        : `<div class="message-text">${escapeHTML(data.text)}</div>`;
-    body.innerHTML = contentHTML;
+    if (isCode || codeText !== null) {
+        html += `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`;
+    } else if (data.text) {
+        html += `<div class="message-text">${escapeHTML(data.text)}</div>`;
+    }
+    if (data.file) {
+        html += renderAttachment(data.file);
+    }
+    body.innerHTML = html;
 }
 
 /* ------------------------------------------------------------------
    Render
    ------------------------------------------------------------------ */
+function renderAttachment(file) {
+    if (!file || !file.url) return '';
+    if (file.type && file.type.startsWith('image/')) {
+        return `<div class="attachment-preview"><img src="${escapeHTML(file.url)}" alt="${escapeHTML(file.name)}" loading="lazy"></div>`;
+    }
+    const size = formatBytes(file.size);
+    return `<a class="file-attachment" href="${escapeHTML(file.url)}" download="${escapeHTML(file.name)}" target="_blank">
+        <span class="file-icon">&#128196;</span>
+        <div class="file-info">
+            <span class="file-name">${escapeHTML(file.name)}</span>
+            <span class="file-size">${size}</span>
+        </div>
+    </a>`;
+}
+
 function renderMessage(data) {
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row");
@@ -454,9 +534,15 @@ function renderMessage(data) {
     </div>`;
 
   const codeText = getCodeFenceContent(data.text);
-  let contentHTML = data.isCode || codeText !== null
-    ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
-    : `<div class="message-text">${escapeHTML(data.text)}</div>`;
+  let contentHTML = '';
+  if (data.isCode || codeText !== null) {
+    contentHTML += `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`;
+  } else if (data.text) {
+    contentHTML += `<div class="message-text">${escapeHTML(data.text)}</div>`;
+  }
+  if (data.file) {
+    contentHTML += renderAttachment(data.file);
+  }
 
   const editedHTML = data.edited
     ? `<span class="edited-tag" title="${data.editedAt || ''}">edited ${formatTime(data.editedAt)}</span>`
@@ -518,9 +604,16 @@ socket.on('message edited', (data) => {
     if (body) {
         const codeText = getCodeFenceContent(data.text);
         const isCode = data.isCode || codeText !== null;
-        const newContent = isCode
-            ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
-            : `<div class="message-text">${escapeHTML(data.text)}</div>`;
+        let newContent = '';
+        if (isCode) {
+            newContent += `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`;
+        } else if (data.text) {
+            newContent += `<div class="message-text">${escapeHTML(data.text)}</div>`;
+        }
+        const cachedFile = cached && cached.file;
+        if (cachedFile) {
+            newContent += renderAttachment(cachedFile);
+        }
         body.innerHTML = newContent;
     }
 
@@ -538,7 +631,7 @@ socket.on('message edited', (data) => {
     }
 });
 
-// Real-time reaction sync — ONLY replaces innerHTML, listener from renderMessage persists
+// Real-time reaction sync
 socket.on('message reactions', (data) => {
     const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
     if (!row) return;
@@ -547,7 +640,6 @@ socket.on('message reactions', (data) => {
     if (!reactionsBar) return;
 
     reactionsBar.innerHTML = buildReactionsInnerHTML(data.reactions);
-    // NO new addEventListener here — the one attached in renderMessage is still active
 });
 
 function escapeHTML(str) {

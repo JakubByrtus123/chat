@@ -41,11 +41,17 @@
         <div id="typing-indicator" class="typing-indicator"></div>
         
         <section class="input-area">
+            <div id="attachment-chip" class="attachment-chip" style="display:none">
+                <span id="attachment-name"></span>
+                <button id="attachment-clear" class="icon-btn" type="button" aria-label="Remove attachment">&#10005;</button>
+            </div>
+            
             <button id="avatar-button" class="avatar-button" type="button" title="Change profile picture" aria-label="Change profile picture"></button>
             <input id="avatar-input" type="file" accept="image/*" hidden>
             <input id="name" type="text" placeholder="Your name" aria-label="Your name" readonly autocomplete="off">
             
             <div class="message-input-wrapper">
+                <button id="file-trigger" class="icon-btn file-btn" type="button" title="Attach file" aria-label="Attach file">&#128206;</button>
                 <button id="code-toggle" class="format-btn icon-btn" type="button" title="Format as code" aria-label="Format as code">&lt;/&gt;</button>
                 <textarea id="message" rows="1" placeholder="Type a message" aria-label="Message" autocomplete="off"></textarea>
                 <button id="emoji-trigger" class="icon-btn" type="button" title="Emoji" aria-label="Emoji">&#128512;</button> 
@@ -59,6 +65,7 @@
                 </svg>
             </button>
             
+            <input id="file-input" type="file" hidden>
             <div id="picker-container"></div>
         </section>
     </main>
