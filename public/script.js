@@ -13,6 +13,8 @@ const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
 const avatarInput = document.getElementById('avatar-input');
+const dmRecipientSelect = document.getElementById('dm-recipient');
+const chatViewLabel = document.getElementById('chat-view-label');
 
 let isMentorMode = false;
 let isCodeMode = false;
@@ -79,6 +81,10 @@ setAvatarButton(currentAvatar);
 
 const MESSAGE_HISTORY_LIMIT = 267;
 const messageDataMap = new Map();
+const channelStore = new Map();
+const knownUsers = new Set();
+let onlineUsers = new Set();
+let dmRecipient = '';
 
 function applyAvatar(avatar) {
     currentAvatar = avatar;
@@ -96,6 +102,7 @@ function isCustomAvatar(src) {
 }
 
 socket.on('connect', () => {
+    socket.emit('join', { username: lockedUsername });
     socket.emit('get avatar', { username: lockedUsername });
 });
 
@@ -218,18 +225,31 @@ darkModeToggle.addEventListener('click', () => {
 let typingTimeout;
 messageInput.addEventListener('input', () => {
     autoResizeMessageInput();
-    socket.emit('typing', { name: lockedUsername, isTyping: true });
+    const typingPayload = { name: lockedUsername, isTyping: true };
+    if (dmRecipient) typingPayload.to = dmRecipient;
+    socket.emit('typing', typingPayload);
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-        socket.emit('typing', { name: lockedUsername, isTyping: false });
+        const stopPayload = { name: lockedUsername, isTyping: false };
+        if (dmRecipient) stopPayload.to = dmRecipient;
+        socket.emit('typing', stopPayload);
     }, 1500);
 });
 
 socket.on('typing', (data) => {
-    const currentUserName = lockedUsername;
-    if (data.isTyping && data.name !== currentUserName) {
+    if (dmRecipient || data.to) return;
+    if (data.isTyping && data.name !== lockedUsername) {
         typingIndicator.textContent = `${data.name} is typing...`;
     } else if (!data.isTyping) {
+        typingIndicator.textContent = '';
+    }
+});
+
+socket.on('dm typing', (data) => {
+    if (!dmRecipient || data.name !== dmRecipient || data.to !== lockedUsername) return;
+    if (data.isTyping) {
+        typingIndicator.textContent = `${data.name} is typing...`;
+    } else {
         typingIndicator.textContent = '';
     }
 });
@@ -240,10 +260,12 @@ function sendMessage() {
   const text = isCodeMode ? wrapCodeFence(rawText) : rawText;
   if (text.trim() === "") return;
 
-  socket.emit('typing', { name: lockedUsername, isTyping: false });
+  const stopTyping = { name: lockedUsername, isTyping: false };
+  if (dmRecipient) stopTyping.to = dmRecipient;
+  socket.emit('typing', stopTyping);
   const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  socket.emit("chat message", {
+  const payload = {
     id: Date.now() + Math.random().toString(36).substr(2, 9),
     name: lockedUsername,
     avatar: currentAvatar,
@@ -251,7 +273,14 @@ function sendMessage() {
     time: timeString,
     isMentor: isMentorMode,
     isCode: isCodeMessage(text)
-  });
+  };
+
+  if (dmRecipient) {
+    payload.to = dmRecipient;
+    socket.emit("direct message", payload);
+  } else {
+    socket.emit("chat message", payload);
+  }
 
   isCodeMode = false;
   codeToggle.classList.remove('active');
@@ -268,19 +297,170 @@ messageInput.addEventListener("keydown", (e) => {
     }
 });
 
+dmRecipientSelect.addEventListener('change', () => {
+  switchToChannel(dmRecipientSelect.value);
+  messageInput.focus();
+});
+
+socket.on('online users', (users) => {
+  if (!Array.isArray(users)) return;
+  onlineUsers = new Set(users);
+  users.forEach(noteUser);
+  updateRecipientOptions();
+});
+
 // Receive history
 socket.on("chat history", (history) => {
   if (!Array.isArray(history)) return;
-  history.slice(-MESSAGE_HISTORY_LIMIT).forEach(msg => renderMessage(msg, { scroll: false }));
-  messages.scrollTop = messages.scrollHeight;
+  const publicMsgs = history.slice(-MESSAGE_HISTORY_LIMIT);
+  channelStore.set('public', [...publicMsgs]);
+  publicMsgs.forEach(msg => noteUser(msg.name));
+  if (!dmRecipient) {
+    clearMessageView();
+    publicMsgs.forEach(msg => renderMessage(msg, { scroll: false }));
+    messages.scrollTop = messages.scrollHeight;
+  }
+});
+
+socket.on('dm history', (history) => {
+  if (!Array.isArray(history)) return;
+  history.slice(-MESSAGE_HISTORY_LIMIT).forEach(msg => {
+    noteUser(msg.name);
+    noteUser(msg.to);
+    addMessageToChannel(msg, determineDMChannelKey(msg));
+  });
+  if (dmRecipient) {
+    switchToChannel(dmRecipient);
+  }
 });
 
 socket.on("chat message", (data) => {
-  renderMessage(data);
-  if (soundsEnabled && data.name !== lockedUsername) {
+  addMessageToChannel(data, 'public');
+  noteUser(data.name);
+  if (!dmRecipient) {
+    renderMessage(data);
+    if (soundsEnabled && data.name !== lockedUsername) {
+      playRandomNotificationSound();
+    }
+  }
+});
+
+socket.on('direct message', (data) => {
+  const key = determineDMChannelKey(data);
+  addMessageToChannel(data, key);
+  noteUser(data.name);
+  noteUser(data.to);
+  if (activeChannelKey() === key) {
+    renderMessage(data);
+    if (soundsEnabled && data.name !== lockedUsername) {
+      playRandomNotificationSound();
+    }
+  } else if (soundsEnabled && data.name !== lockedUsername) {
     playRandomNotificationSound();
   }
 });
+
+/* ------------------------------------------------------------------
+   Direct messages
+   ------------------------------------------------------------------ */
+function dmChannelKey(otherUser) {
+  return `dm:${[lockedUsername, otherUser].sort().join(':')}`;
+}
+
+function activeChannelKey() {
+  return dmRecipient ? dmChannelKey(dmRecipient) : 'public';
+}
+
+function getChannelMessages(key) {
+  if (!channelStore.has(key)) {
+    channelStore.set(key, []);
+  }
+  return channelStore.get(key);
+}
+
+function addMessageToChannel(data, channelKey) {
+  const list = getChannelMessages(channelKey);
+  if (list.some(m => m.id === data.id)) return;
+  list.push(data);
+  while (list.length > MESSAGE_HISTORY_LIMIT) {
+    list.shift();
+  }
+}
+
+function determineDMChannelKey(data) {
+  const other = data.name === lockedUsername ? data.to : data.name;
+  return dmChannelKey(other);
+}
+
+function clearMessageView() {
+  messages.innerHTML = '';
+  messageDataMap.clear();
+}
+
+function syncChatViewLabel() {
+  if (dmRecipient) {
+    chatViewLabel.hidden = false;
+    chatViewLabel.classList.add('dm-active');
+    chatViewLabel.textContent = `Direct message with ${dmRecipient}`;
+  } else {
+    chatViewLabel.hidden = true;
+    chatViewLabel.classList.remove('dm-active');
+    chatViewLabel.textContent = '';
+  }
+}
+
+function updateMessageInputPlaceholder() {
+  messageInput.placeholder = dmRecipient
+    ? `Private message to ${dmRecipient}`
+    : 'Type a message';
+}
+
+function updateRecipientOptions() {
+  const current = dmRecipient;
+  const users = [...knownUsers]
+    .filter(name => name !== lockedUsername)
+    .sort((a, b) => a.localeCompare(b));
+
+  dmRecipientSelect.innerHTML = '<option value="">Everyone</option>';
+  users.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = onlineUsers.has(name) ? `${name} (online)` : name;
+    dmRecipientSelect.appendChild(option);
+  });
+  dmRecipientSelect.value = current;
+}
+
+function noteUser(name) {
+  if (!name || name === lockedUsername) return;
+  knownUsers.add(name);
+  updateRecipientOptions();
+}
+
+function switchToChannel(recipient) {
+  dmRecipient = recipient || '';
+  dmRecipientSelect.value = dmRecipient;
+  syncChatViewLabel();
+  updateMessageInputPlaceholder();
+  typingIndicator.textContent = '';
+  clearMessageView();
+  getChannelMessages(activeChannelKey()).forEach(msg => renderMessage(msg, { scroll: false }));
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function startDMWith(username) {
+  if (!username || username === lockedUsername) return;
+  noteUser(username);
+  switchToChannel(username);
+  messageInput.focus();
+}
+
+function removeMessageFromChannels(id) {
+  channelStore.forEach((list) => {
+    const index = list.findIndex(m => m.id === id);
+    if (index !== -1) list.splice(index, 1);
+  });
+}
 
 /* ------------------------------------------------------------------
    Helpers
@@ -454,10 +634,14 @@ function renderMessage(data, options = {}) {
     ? `<button class="msg-action-btn delete-msg-btn" title="Delete message">&#128465;</button>`
     : "";
 
+  const nameHTML = isMe
+    ? `<strong>${escapeHTML(displayName)}</strong>`
+    : `<strong class="dm-name-link" data-username="${escapeHTML(data.name)}">${escapeHTML(displayName)}</strong>`;
+
   let headerHTML = `
     <div class="message-header">
       <div class="message-header-left">
-        <strong>${escapeHTML(displayName)}</strong>
+        ${nameHTML}
         ${mentorBadge}
       </div>
       <div class="message-actions">
@@ -485,6 +669,11 @@ function renderMessage(data, options = {}) {
       </div>
     </div>
   `;
+
+  const nameLink = messageElement.querySelector('.dm-name-link');
+  if (nameLink) {
+    nameLink.addEventListener('click', () => startDMWith(nameLink.dataset.username));
+  }
 
   if (isMe && data.id) {
     const editBtn = messageElement.querySelector('.edit-msg-btn');
@@ -564,6 +753,64 @@ socket.on('message reactions', (data) => {
 
     reactionsBar.innerHTML = buildReactionsInnerHTML(data.reactions);
     // NO new addEventListener here — the one attached in renderMessage is still active
+});
+
+socket.on('dm edited', (data) => {
+    const cached = messageDataMap.get(data.id);
+    if (cached) {
+        cached.text = data.text;
+        cached.edited = true;
+        cached.editedAt = data.editedAt;
+        if (data.isCode !== undefined) cached.isCode = data.isCode;
+    }
+
+    const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    if (!row) return;
+
+    const msg = row.querySelector('.message');
+    const body = msg.querySelector('.message-body');
+    const meta = msg.querySelector('.message-meta');
+
+    if (body) {
+        const codeText = getCodeFenceContent(data.text);
+        const isCode = data.isCode || codeText !== null;
+        const newContent = isCode
+            ? `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`
+            : `<div class="message-text">${escapeHTML(data.text)}</div>`;
+        body.innerHTML = newContent;
+    }
+
+    if (meta) {
+        let editedTag = meta.querySelector('.edited-tag');
+        if (!editedTag) {
+            editedTag = document.createElement('span');
+            editedTag.className = 'edited-tag';
+            const ts = meta.querySelector('.timestamp');
+            if (ts) meta.insertBefore(editedTag, ts);
+            else meta.appendChild(editedTag);
+        }
+        editedTag.textContent = `edited ${formatTime(data.editedAt)}`;
+        editedTag.title = data.editedAt || '';
+    }
+});
+
+socket.on('dm reactions', (data) => {
+    const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    if (!row) return;
+
+    const reactionsBar = row.querySelector('.reactions-bar');
+    if (!reactionsBar) return;
+
+    reactionsBar.innerHTML = buildReactionsInnerHTML(data.reactions);
+});
+
+socket.on('dm deleted', (data) => {
+    removeMessageFromChannels(data.id);
+    messageDataMap.delete(data.id);
+    const rowToRemove = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    if (rowToRemove) {
+        rowToRemove.remove();
+    }
 });
 
 function escapeHTML(str) {
@@ -647,9 +894,13 @@ function resizeAvatarFile(file) {
     });
 }
 
+syncChatViewLabel();
+updateMessageInputPlaceholder();
 autoResizeMessageInput();
 
 socket.on("message deleted", (data) => {
+    removeMessageFromChannels(data.id);
+    messageDataMap.delete(data.id);
     const rowToRemove = document.querySelector(`.message-row[data-id="${data.id}"]`);
     if (rowToRemove) {
         rowToRemove.remove();

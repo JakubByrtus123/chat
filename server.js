@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const messagesFile = path.join(__dirname, 'messages.json');
+const dmsFile = path.join(__dirname, 'direct-messages.json');
 const avatarsFile = path.join(__dirname, 'avatars.json');
 
 function loadMessages() {
@@ -25,6 +26,25 @@ function saveMessages(messages) {
         fs.writeFileSync(messagesFile, JSON.stringify(messages, null, 2));
     } catch (error) {
         console.error('Could not save messages:', error);
+    }
+}
+
+function loadDMs() {
+    try {
+        if (!fs.existsSync(dmsFile)) return [];
+        const savedDMs = JSON.parse(fs.readFileSync(dmsFile, 'utf8'));
+        return Array.isArray(savedDMs) ? savedDMs : [];
+    } catch (error) {
+        console.error('Could not load direct messages:', error);
+        return [];
+    }
+}
+
+function saveDMs(dms) {
+    try {
+        fs.writeFileSync(dmsFile, JSON.stringify(dms, null, 2));
+    } catch (error) {
+        console.error('Could not save direct messages:', error);
     }
 }
 
@@ -49,13 +69,41 @@ function saveAvatars(avatars) {
 const MESSAGE_HISTORY_LIMIT = 267;
 
 const savedMessages = loadMessages();
+const savedDMs = loadDMs();
 const userAvatars = loadAvatars();
+const userSockets = new Map();
 
-// Normalize old messages
-savedMessages.forEach(m => {
+function normalizeMessage(m) {
     if (!m.reactions) m.reactions = {};
     if (!m.edited) m.edited = false;
-});
+}
+
+savedMessages.forEach(normalizeMessage);
+savedDMs.forEach(normalizeMessage);
+
+function getOnlineUsers() {
+    return [...userSockets.keys()].sort((a, b) => a.localeCompare(b));
+}
+
+function broadcastOnlineUsers() {
+    const users = getOnlineUsers();
+    io.emit('online users', users);
+}
+
+function emitToUser(username, event, data) {
+    const sockets = userSockets.get(username);
+    if (!sockets) return;
+    sockets.forEach(socketId => io.to(socketId).emit(event, data));
+}
+
+function emitToUsers(usernames, event, data) {
+    const unique = [...new Set(usernames.filter(Boolean))];
+    unique.forEach(username => emitToUser(username, event, data));
+}
+
+function findDMIndex(id) {
+    return savedDMs.findIndex(m => m.id === id);
+}
 
 const io = new Server(server, {
     cors: { origin: '*' }
@@ -66,6 +114,30 @@ app.use(express.static('public'));
 io.on('connection', (socket) => {
     console.log('A user connected');
     socket.emit('chat history', savedMessages.slice(-MESSAGE_HISTORY_LIMIT));
+
+    socket.on('join', (data) => {
+        const username = data && data.username;
+        if (!username) return;
+
+        const previousUsername = socket.data.username;
+        if (previousUsername && userSockets.has(previousUsername)) {
+            userSockets.get(previousUsername).delete(socket.id);
+            if (userSockets.get(previousUsername).size === 0) {
+                userSockets.delete(previousUsername);
+            }
+        }
+
+        socket.data.username = username;
+        if (!userSockets.has(username)) {
+            userSockets.set(username, new Set());
+        }
+        userSockets.get(username).add(socket.id);
+
+        const userDMs = savedDMs.filter(m => m.name === username || m.to === username);
+        socket.emit('dm history', userDMs.slice(-MESSAGE_HISTORY_LIMIT));
+        socket.emit('online users', getOnlineUsers());
+        broadcastOnlineUsers();
+    });
 
     socket.on('get avatar', (data) => {
         if (data && data.username) {
@@ -87,37 +159,100 @@ io.on('connection', (socket) => {
         if (userAvatars[data.name]) {
             data.avatar = userAvatars[data.name];
         }
-        if (!data.reactions) data.reactions = {};
-        if (!data.edited) data.edited = false;
+        normalizeMessage(data);
 
         savedMessages.push(data);
         saveMessages(savedMessages);
         io.emit('chat message', data);
     });
 
+    socket.on('direct message', (data) => {
+        const sender = data && data.name;
+        const recipient = data && data.to;
+        if (!sender || !recipient || sender === recipient) return;
+
+        if (userAvatars[sender]) {
+            data.avatar = userAvatars[sender];
+        }
+        normalizeMessage(data);
+
+        savedDMs.push(data);
+        saveDMs(savedDMs);
+        emitToUsers([sender, recipient], 'direct message', data);
+    });
+
     socket.on('edit message', (data) => {
-        const index = savedMessages.findIndex(m => m.id === data.id);
-        if (index !== -1 && savedMessages[index].name === data.username) {
-            savedMessages[index].text = data.text;
-            savedMessages[index].edited = true;
-            savedMessages[index].editedAt = new Date().toISOString();
-            savedMessages[index].isCode = /^```[\s\S]*```$/.test(data.text.trim());
+        const publicIndex = savedMessages.findIndex(m => m.id === data.id);
+        if (publicIndex !== -1 && savedMessages[publicIndex].name === data.username) {
+            savedMessages[publicIndex].text = data.text;
+            savedMessages[publicIndex].edited = true;
+            savedMessages[publicIndex].editedAt = new Date().toISOString();
+            savedMessages[publicIndex].isCode = /^```[\s\S]*```$/.test(data.text.trim());
             saveMessages(savedMessages);
             io.emit('message edited', {
                 id: data.id,
                 text: data.text,
                 edited: true,
-                editedAt: savedMessages[index].editedAt,
-                isCode: savedMessages[index].isCode
+                editedAt: savedMessages[publicIndex].editedAt,
+                isCode: savedMessages[publicIndex].isCode
             });
+            return;
         }
+
+        const dmIndex = findDMIndex(data.id);
+        if (dmIndex === -1) return;
+        const dm = savedDMs[dmIndex];
+        if (dm.name !== data.username) return;
+
+        dm.text = data.text;
+        dm.edited = true;
+        dm.editedAt = new Date().toISOString();
+        dm.isCode = /^```[\s\S]*```$/.test(data.text.trim());
+        saveDMs(savedDMs);
+        emitToUsers([dm.name, dm.to], 'dm edited', {
+            id: data.id,
+            text: data.text,
+            edited: true,
+            editedAt: dm.editedAt,
+            isCode: dm.isCode
+        });
     });
 
     socket.on('reaction', (data) => {
-        const index = savedMessages.findIndex(m => m.id === data.messageId);
-        if (index === -1) return;
+        const publicIndex = savedMessages.findIndex(m => m.id === data.messageId);
+        if (publicIndex !== -1) {
+            const msg = savedMessages[publicIndex];
+            if (!msg.reactions) msg.reactions = {};
 
-        const msg = savedMessages[index];
+            const emoji = data.emoji;
+            const username = data.username;
+
+            if (!msg.reactions[emoji]) {
+                msg.reactions[emoji] = [];
+            }
+
+            const idx = msg.reactions[emoji].indexOf(username);
+            if (idx === -1) {
+                msg.reactions[emoji].push(username);
+            } else {
+                msg.reactions[emoji].splice(idx, 1);
+                if (msg.reactions[emoji].length === 0) {
+                    delete msg.reactions[emoji];
+                }
+            }
+
+            saveMessages(savedMessages);
+            io.emit('message reactions', {
+                id: data.messageId,
+                reactions: msg.reactions
+            });
+            return;
+        }
+
+        const dmIndex = findDMIndex(data.messageId);
+        if (dmIndex === -1) return;
+
+        const msg = savedDMs[dmIndex];
         if (!msg.reactions) msg.reactions = {};
 
         const emoji = data.emoji;
@@ -137,27 +272,49 @@ io.on('connection', (socket) => {
             }
         }
 
-        saveMessages(savedMessages);
-        io.emit('message reactions', {
+        saveDMs(savedDMs);
+        emitToUsers([msg.name, msg.to], 'dm reactions', {
             id: data.messageId,
             reactions: msg.reactions
         });
     });
 
     socket.on('delete message', (data) => {
-        const index = savedMessages.findIndex(m => m.id === data.id);
-        if (index !== -1 && savedMessages[index].name === data.username) {
-            savedMessages.splice(index, 1);
+        const publicIndex = savedMessages.findIndex(m => m.id === data.id);
+        if (publicIndex !== -1 && savedMessages[publicIndex].name === data.username) {
+            savedMessages.splice(publicIndex, 1);
             saveMessages(savedMessages);
             io.emit('message deleted', { id: data.id });
+            return;
         }
+
+        const dmIndex = findDMIndex(data.id);
+        if (dmIndex === -1) return;
+        const dm = savedDMs[dmIndex];
+        if (dm.name !== data.username) return;
+
+        savedDMs.splice(dmIndex, 1);
+        saveDMs(savedDMs);
+        emitToUsers([dm.name, dm.to], 'dm deleted', { id: data.id });
     });
 
     socket.on('typing', (data) => {
+        if (data && data.to) {
+            emitToUser(data.to, 'dm typing', data);
+            return;
+        }
         socket.broadcast.emit('typing', data);
     });
 
     socket.on('disconnect', () => {
+        const username = socket.data.username;
+        if (username && userSockets.has(username)) {
+            userSockets.get(username).delete(socket.id);
+            if (userSockets.get(username).size === 0) {
+                userSockets.delete(username);
+            }
+            broadcastOnlineUsers();
+        }
         console.log('A user disconnected');
     });
 });

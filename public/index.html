@@ -37,8 +37,16 @@
                 </button>
             </div>
         </header>
+        <div id="chat-view-label" class="chat-view-label" hidden></div>
         <div id="messages" class="messages"></div>
         <div id="typing-indicator" class="typing-indicator"></div>
+
+        <div class="dm-bar">
+            <label for="dm-recipient">To</label>
+            <select id="dm-recipient" aria-label="Message recipient">
+                <option value="">Everyone</option>
+            </select>
+        </div>
         
         <section class="input-area">
             <button id="avatar-button" class="avatar-button" type="button" title="Change profile picture" aria-label="Change profile picture"></button>
