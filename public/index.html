@@ -37,16 +37,12 @@
                 </button>
             </div>
         </header>
-        <div id="chat-view-label" class="chat-view-label" hidden></div>
+        <div id="chat-view-label" class="chat-view-label" hidden>
+            <span id="chat-view-text"></span>
+            <button type="button" id="dm-back-btn" class="dm-back-btn" hidden>Back to public chat</button>
+        </div>
         <div id="messages" class="messages"></div>
         <div id="typing-indicator" class="typing-indicator"></div>
-
-        <div class="dm-bar">
-            <label for="dm-recipient">To</label>
-            <select id="dm-recipient" aria-label="Message recipient">
-                <option value="">Everyone</option>
-            </select>
-        </div>
         
         <section class="input-area">
             <button id="avatar-button" class="avatar-button" type="button" title="Change profile picture" aria-label="Change profile picture"></button>
@@ -70,6 +66,10 @@
             <div id="picker-container"></div>
         </section>
     </main>
+
+    <div id="avatar-context-menu" class="avatar-context-menu" hidden role="menu">
+        <button type="button" class="context-menu-item">Direct message</button>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="script.js"></script>

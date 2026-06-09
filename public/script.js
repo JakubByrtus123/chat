@@ -13,8 +13,10 @@ const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
 const avatarInput = document.getElementById('avatar-input');
-const dmRecipientSelect = document.getElementById('dm-recipient');
 const chatViewLabel = document.getElementById('chat-view-label');
+const chatViewText = document.getElementById('chat-view-text');
+const dmBackBtn = document.getElementById('dm-back-btn');
+const avatarContextMenu = document.getElementById('avatar-context-menu');
 
 let isMentorMode = false;
 let isCodeMode = false;
@@ -82,9 +84,8 @@ setAvatarButton(currentAvatar);
 const MESSAGE_HISTORY_LIMIT = 267;
 const messageDataMap = new Map();
 const channelStore = new Map();
-const knownUsers = new Set();
-let onlineUsers = new Set();
 let dmRecipient = '';
+let contextMenuUsername = '';
 
 function applyAvatar(avatar) {
     currentAvatar = avatar;
@@ -161,6 +162,26 @@ document.addEventListener('click', (event) => {
     if (!event.target.closest('.reactions-bar')) {
         document.querySelectorAll('.reaction-picker-mini').forEach(p => p.style.display = 'none');
     }
+    if (!event.target.closest('.avatar-context-menu')) {
+        hideAvatarContextMenu();
+    }
+});
+
+document.addEventListener('contextmenu', (event) => {
+    if (!event.target.closest('.message-avatar') || event.target.closest('.my-message-row')) {
+        hideAvatarContextMenu();
+    }
+});
+
+avatarContextMenu.querySelector('.context-menu-item').addEventListener('click', () => {
+    const username = contextMenuUsername;
+    hideAvatarContextMenu();
+    if (username) startDMWith(username);
+});
+
+dmBackBtn.addEventListener('click', () => {
+    switchToChannel('');
+    messageInput.focus();
 });
 
 async function loadEmojiPicker() {
@@ -297,24 +318,11 @@ messageInput.addEventListener("keydown", (e) => {
     }
 });
 
-dmRecipientSelect.addEventListener('change', () => {
-  switchToChannel(dmRecipientSelect.value);
-  messageInput.focus();
-});
-
-socket.on('online users', (users) => {
-  if (!Array.isArray(users)) return;
-  onlineUsers = new Set(users);
-  users.forEach(noteUser);
-  updateRecipientOptions();
-});
-
 // Receive history
 socket.on("chat history", (history) => {
   if (!Array.isArray(history)) return;
   const publicMsgs = history.slice(-MESSAGE_HISTORY_LIMIT);
   channelStore.set('public', [...publicMsgs]);
-  publicMsgs.forEach(msg => noteUser(msg.name));
   if (!dmRecipient) {
     clearMessageView();
     publicMsgs.forEach(msg => renderMessage(msg, { scroll: false }));
@@ -325,8 +333,6 @@ socket.on("chat history", (history) => {
 socket.on('dm history', (history) => {
   if (!Array.isArray(history)) return;
   history.slice(-MESSAGE_HISTORY_LIMIT).forEach(msg => {
-    noteUser(msg.name);
-    noteUser(msg.to);
     addMessageToChannel(msg, determineDMChannelKey(msg));
   });
   if (dmRecipient) {
@@ -336,7 +342,6 @@ socket.on('dm history', (history) => {
 
 socket.on("chat message", (data) => {
   addMessageToChannel(data, 'public');
-  noteUser(data.name);
   if (!dmRecipient) {
     renderMessage(data);
     if (soundsEnabled && data.name !== lockedUsername) {
@@ -348,8 +353,6 @@ socket.on("chat message", (data) => {
 socket.on('direct message', (data) => {
   const key = determineDMChannelKey(data);
   addMessageToChannel(data, key);
-  noteUser(data.name);
-  noteUser(data.to);
   if (activeChannelKey() === key) {
     renderMessage(data);
     if (soundsEnabled && data.name !== lockedUsername) {
@@ -401,12 +404,38 @@ function syncChatViewLabel() {
   if (dmRecipient) {
     chatViewLabel.hidden = false;
     chatViewLabel.classList.add('dm-active');
-    chatViewLabel.textContent = `Direct message with ${dmRecipient}`;
+    chatViewText.textContent = `Direct message with ${dmRecipient}`;
+    dmBackBtn.hidden = false;
   } else {
     chatViewLabel.hidden = true;
     chatViewLabel.classList.remove('dm-active');
-    chatViewLabel.textContent = '';
+    chatViewText.textContent = '';
+    dmBackBtn.hidden = true;
   }
+}
+
+function showAvatarContextMenu(x, y, username) {
+  contextMenuUsername = username;
+  avatarContextMenu.hidden = false;
+  avatarContextMenu.style.left = `${x}px`;
+  avatarContextMenu.style.top = `${y}px`;
+
+  const rect = avatarContextMenu.getBoundingClientRect();
+  let left = x;
+  let top = y;
+  if (left + rect.width > window.innerWidth - 8) {
+    left = window.innerWidth - rect.width - 8;
+  }
+  if (top + rect.height > window.innerHeight - 8) {
+    top = window.innerHeight - rect.height - 8;
+  }
+  avatarContextMenu.style.left = `${left}px`;
+  avatarContextMenu.style.top = `${top}px`;
+}
+
+function hideAvatarContextMenu() {
+  avatarContextMenu.hidden = true;
+  contextMenuUsername = '';
 }
 
 function updateMessageInputPlaceholder() {
@@ -415,31 +444,8 @@ function updateMessageInputPlaceholder() {
     : 'Type a message';
 }
 
-function updateRecipientOptions() {
-  const current = dmRecipient;
-  const users = [...knownUsers]
-    .filter(name => name !== lockedUsername)
-    .sort((a, b) => a.localeCompare(b));
-
-  dmRecipientSelect.innerHTML = '<option value="">Everyone</option>';
-  users.forEach(name => {
-    const option = document.createElement('option');
-    option.value = name;
-    option.textContent = onlineUsers.has(name) ? `${name} (online)` : name;
-    dmRecipientSelect.appendChild(option);
-  });
-  dmRecipientSelect.value = current;
-}
-
-function noteUser(name) {
-  if (!name || name === lockedUsername) return;
-  knownUsers.add(name);
-  updateRecipientOptions();
-}
-
 function switchToChannel(recipient) {
   dmRecipient = recipient || '';
-  dmRecipientSelect.value = dmRecipient;
   syncChatViewLabel();
   updateMessageInputPlaceholder();
   typingIndicator.textContent = '';
@@ -450,7 +456,6 @@ function switchToChannel(recipient) {
 
 function startDMWith(username) {
   if (!username || username === lockedUsername) return;
-  noteUser(username);
   switchToChannel(username);
   messageInput.focus();
 }
@@ -634,14 +639,10 @@ function renderMessage(data, options = {}) {
     ? `<button class="msg-action-btn delete-msg-btn" title="Delete message">&#128465;</button>`
     : "";
 
-  const nameHTML = isMe
-    ? `<strong>${escapeHTML(displayName)}</strong>`
-    : `<strong class="dm-name-link" data-username="${escapeHTML(data.name)}">${escapeHTML(displayName)}</strong>`;
-
   let headerHTML = `
     <div class="message-header">
       <div class="message-header-left">
-        ${nameHTML}
+        <strong>${escapeHTML(displayName)}</strong>
         ${mentorBadge}
       </div>
       <div class="message-actions">
@@ -670,11 +671,6 @@ function renderMessage(data, options = {}) {
     </div>
   `;
 
-  const nameLink = messageElement.querySelector('.dm-name-link');
-  if (nameLink) {
-    nameLink.addEventListener('click', () => startDMWith(nameLink.dataset.username));
-  }
-
   if (isMe && data.id) {
     const editBtn = messageElement.querySelector('.edit-msg-btn');
     const deleteBtn = messageElement.querySelector('.delete-msg-btn');
@@ -693,6 +689,13 @@ function renderMessage(data, options = {}) {
   avatarElement.className = "message-avatar";
   avatarElement.alt = "";
   avatarElement.src = data.avatar || createAvatarDataUrl(data.name || "Anonymous");
+  if (!isMe) {
+    avatarElement.title = "Right-click for direct message";
+    avatarElement.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showAvatarContextMenu(e.clientX, e.clientY, data.name);
+    });
+  }
 
   messageRow.appendChild(avatarElement);
   messageRow.appendChild(messageElement);
