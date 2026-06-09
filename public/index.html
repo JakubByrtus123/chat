@@ -47,9 +47,18 @@
             
             <div class="message-input-wrapper">
                 <button id="code-toggle" class="format-btn icon-btn" type="button" title="Format as code" aria-label="Format as code">&lt;/&gt;</button>
+                <button id="image-button" class="icon-btn image-btn" type="button" title="Attach image" aria-label="Attach image">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                        <circle cx="8.5" cy="10.5" r="1.5"></circle>
+                        <path d="m21 15-5-5L5 19"></path>
+                    </svg>
+                </button>
+                <input id="image-input" type="file" accept="image/*" hidden>
                 <textarea id="message" rows="1" placeholder="Type a message" aria-label="Message" autocomplete="off"></textarea>
                 <button id="emoji-trigger" class="icon-btn" type="button" title="Emoji" aria-label="Emoji">&#128512;</button> 
             </div>
+            <div id="image-preview" class="image-preview" hidden></div>
 
             <button id="mentor-toggle" class="mentor-btn" type="button" title="Toggle Mentor Mode">Mentor</button>
             <button id="send" class="send-btn icon-btn" type="button" title="Send message" aria-label="Send message">

@@ -56,7 +56,8 @@ savedMessages.forEach(m => {
 });
 
 const io = new Server(server, {
-    cors: { origin: '*' }
+    cors: { origin: '*' },
+    maxHttpBufferSize: 5e6
 });
 
 app.use(express.static('public'));
@@ -84,6 +85,9 @@ io.on('connection', (socket) => {
     socket.on('chat message', (data) => {
         if (userAvatars[data.name]) {
             data.avatar = userAvatars[data.name];
+        }
+        if (data.image && (!data.image.src || !data.image.src.startsWith('data:image/') || data.image.src.length > 4_500_000)) {
+            delete data.image;
         }
         if (!data.reactions) data.reactions = {};
         if (!data.edited) data.edited = false;
