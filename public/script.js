@@ -13,6 +13,12 @@ const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
 const avatarInput = document.getElementById('avatar-input');
+const chatViewLabel = document.getElementById('chat-view-label');
+const chatViewText = document.getElementById('chat-view-text');
+const dmBackBtn = document.getElementById('dm-back-btn');
+const dmRecipientSelect = document.getElementById('dm-recipient');
+const dmPicker = document.querySelector('.dm-picker');
+const avatarContextMenu = document.getElementById('avatar-context-menu');
 const fileTrigger = document.getElementById('file-trigger');
 const fileInput = document.getElementById('file-input');
 const attachmentChip = document.getElementById('attachment-chip');
@@ -83,7 +89,13 @@ nameInput.title = "Username is locked for this browser";
 let currentAvatar = localStorage.getItem(`chat_avatar_${lockedUsername}`) || createAvatarDataUrl(lockedUsername);
 setAvatarButton(currentAvatar);
 
+const MESSAGE_HISTORY_LIMIT = 267;
 const messageDataMap = new Map();
+const channelStore = new Map();
+const knownUsers = new Set();
+let onlineUsers = new Set();
+let dmRecipient = '';
+let contextMenuUsername = '';
 
 function applyAvatar(avatar) {
     currentAvatar = avatar;
@@ -101,6 +113,7 @@ function isCustomAvatar(src) {
 }
 
 socket.on('connect', () => {
+    socket.emit('join', { username: lockedUsername });
     socket.emit('get avatar', { username: lockedUsername });
 });
 
@@ -196,6 +209,31 @@ document.addEventListener('click', (event) => {
     if (!event.target.closest('.reactions-bar')) {
         document.querySelectorAll('.reaction-picker-mini').forEach(p => p.style.display = 'none');
     }
+    if (!event.target.closest('.avatar-context-menu')) {
+        hideAvatarContextMenu();
+    }
+});
+
+document.addEventListener('contextmenu', (event) => {
+    if (!event.target.closest('.message-avatar') || event.target.closest('.my-message-row')) {
+        hideAvatarContextMenu();
+    }
+});
+
+avatarContextMenu.querySelector('.context-menu-item').addEventListener('click', () => {
+    const username = contextMenuUsername;
+    hideAvatarContextMenu();
+    if (username) startDMWith(username);
+});
+
+dmBackBtn.addEventListener('click', () => {
+    switchToChannel('');
+    messageInput.focus();
+});
+
+dmRecipientSelect.addEventListener('change', () => {
+    switchToChannel(dmRecipientSelect.value);
+    messageInput.focus();
 });
 
 async function loadEmojiPicker() {
@@ -260,18 +298,31 @@ darkModeToggle.addEventListener('click', () => {
 let typingTimeout;
 messageInput.addEventListener('input', () => {
     autoResizeMessageInput();
-    socket.emit('typing', { name: lockedUsername, isTyping: true });
+    const typingPayload = { name: lockedUsername, isTyping: true };
+    if (dmRecipient) typingPayload.to = dmRecipient;
+    socket.emit('typing', typingPayload);
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-        socket.emit('typing', { name: lockedUsername, isTyping: false });
+        const stopPayload = { name: lockedUsername, isTyping: false };
+        if (dmRecipient) stopPayload.to = dmRecipient;
+        socket.emit('typing', stopPayload);
     }, 1500);
 });
 
 socket.on('typing', (data) => {
-    const currentUserName = lockedUsername;
-    if (data.isTyping && data.name !== currentUserName) {
+    if (dmRecipient || data.to) return;
+    if (data.isTyping && data.name !== lockedUsername) {
         typingIndicator.textContent = `${data.name} is typing...`;
     } else if (!data.isTyping) {
+        typingIndicator.textContent = '';
+    }
+});
+
+socket.on('dm typing', (data) => {
+    if (!dmRecipient || data.name !== dmRecipient || data.to !== lockedUsername) return;
+    if (data.isTyping) {
+        typingIndicator.textContent = `${data.name} is typing...`;
+    } else {
         typingIndicator.textContent = '';
     }
 });
@@ -282,8 +333,12 @@ function sendMessage() {
   const text = isCodeMode ? wrapCodeFence(rawText) : rawText;
   if (text.trim() === "" && !pendingAttachment) return;
 
-  socket.emit('typing', { name: lockedUsername, isTyping: false });
-  const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const stopTyping = { name: lockedUsername, isTyping: false };
+  if (dmRecipient) stopTyping.to = dmRecipient;
+  socket.emit('typing', stopTyping);
+
+  const now = new Date();
+  const timeString = now.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const payload = {
     id: Date.now() + Math.random().toString(36).substr(2, 9),
@@ -301,7 +356,12 @@ function sendMessage() {
     attachmentChip.style.display = 'none';
   }
 
-  socket.emit("chat message", payload);
+  if (dmRecipient) {
+    payload.to = dmRecipient;
+    socket.emit("direct message", payload);
+  } else {
+    socket.emit("chat message", payload);
+  }
 
   isCodeMode = false;
   codeToggle.classList.remove('active');
@@ -318,18 +378,197 @@ messageInput.addEventListener("keydown", (e) => {
     }
 });
 
+socket.on('online users', (users) => {
+  if (!Array.isArray(users)) return;
+  onlineUsers = new Set(users);
+  users.forEach(noteUser);
+  updateRecipientOptions();
+});
+
 // Receive history
 socket.on("chat history", (history) => {
   if (!Array.isArray(history)) return;
-  history.forEach(msg => renderMessage(msg));
+  const publicMsgs = history.slice(-MESSAGE_HISTORY_LIMIT);
+  channelStore.set('public', [...publicMsgs]);
+  publicMsgs.forEach(msg => noteUser(msg.name));
+  if (!dmRecipient) {
+    clearMessageView();
+    publicMsgs.forEach(msg => renderMessage(msg, { scroll: false }));
+    messages.scrollTop = messages.scrollHeight;
+  }
+});
+
+socket.on('dm history', (history) => {
+  if (!Array.isArray(history)) return;
+  history.slice(-MESSAGE_HISTORY_LIMIT).forEach(msg => {
+    noteUser(msg.name);
+    noteUser(msg.to);
+    addMessageToChannel(msg, determineDMChannelKey(msg));
+  });
+  if (dmRecipient) {
+    switchToChannel(dmRecipient);
+  }
 });
 
 socket.on("chat message", (data) => {
-  renderMessage(data);
-  if (soundsEnabled && data.name !== lockedUsername) {
+  addMessageToChannel(data, 'public');
+  noteUser(data.name);
+  if (!dmRecipient) {
+    renderMessage(data);
+    if (soundsEnabled && data.name !== lockedUsername) {
+      playRandomNotificationSound();
+    }
+  }
+});
+
+socket.on('direct message', (data) => {
+  const key = determineDMChannelKey(data);
+  addMessageToChannel(data, key);
+  noteUser(data.name);
+  noteUser(data.to);
+  if (activeChannelKey() === key) {
+    renderMessage(data);
+    if (soundsEnabled && data.name !== lockedUsername) {
+      playRandomNotificationSound();
+    }
+  } else if (soundsEnabled && data.name !== lockedUsername) {
     playRandomNotificationSound();
   }
 });
+
+/* ------------------------------------------------------------------
+   Direct messages
+   ------------------------------------------------------------------ */
+function dmChannelKey(otherUser) {
+  return `dm:${[lockedUsername, otherUser].sort().join(':')}`;
+}
+
+function activeChannelKey() {
+  return dmRecipient ? dmChannelKey(dmRecipient) : 'public';
+}
+
+function getChannelMessages(key) {
+  if (!channelStore.has(key)) {
+    channelStore.set(key, []);
+  }
+  return channelStore.get(key);
+}
+
+function addMessageToChannel(data, channelKey) {
+  const list = getChannelMessages(channelKey);
+  if (list.some(m => m.id === data.id)) return;
+  list.push(data);
+  while (list.length > MESSAGE_HISTORY_LIMIT) {
+    list.shift();
+  }
+}
+
+function determineDMChannelKey(data) {
+  const other = data.name === lockedUsername ? data.to : data.name;
+  return dmChannelKey(other);
+}
+
+function clearMessageView() {
+  messages.innerHTML = '';
+  messageDataMap.clear();
+}
+
+function updateRecipientOptions() {
+  const current = dmRecipient;
+  const users = [...knownUsers]
+    .filter(name => name !== lockedUsername)
+    .sort((a, b) => a.localeCompare(b));
+
+  dmRecipientSelect.innerHTML = '<option value="">Everyone</option>';
+  users.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = onlineUsers.has(name) ? `${name} · online` : name;
+    dmRecipientSelect.appendChild(option);
+  });
+  dmRecipientSelect.value = current;
+}
+
+function noteUser(name) {
+  if (!name || name === lockedUsername) return;
+  knownUsers.add(name);
+  updateRecipientOptions();
+}
+
+function syncDmPicker() {
+  dmRecipientSelect.value = dmRecipient;
+  if (dmPicker) {
+    dmPicker.classList.toggle('dm-active', Boolean(dmRecipient));
+  }
+}
+
+function syncChatViewLabel() {
+  if (dmRecipient) {
+    chatViewLabel.hidden = false;
+    chatViewLabel.classList.add('dm-active');
+    chatViewText.textContent = `Direct message with ${dmRecipient}`;
+    dmBackBtn.hidden = false;
+  } else {
+    chatViewLabel.hidden = true;
+    chatViewLabel.classList.remove('dm-active');
+    chatViewText.textContent = '';
+    dmBackBtn.hidden = true;
+  }
+}
+
+function showAvatarContextMenu(x, y, username) {
+  contextMenuUsername = username;
+  avatarContextMenu.hidden = false;
+  avatarContextMenu.style.left = `${x}px`;
+  avatarContextMenu.style.top = `${y}px`;
+
+  const rect = avatarContextMenu.getBoundingClientRect();
+  let left = x;
+  let top = y;
+  if (left + rect.width > window.innerWidth - 8) {
+    left = window.innerWidth - rect.width - 8;
+  }
+  if (top + rect.height > window.innerHeight - 8) {
+    top = window.innerHeight - rect.height - 8;
+  }
+  avatarContextMenu.style.left = `${left}px`;
+  avatarContextMenu.style.top = `${top}px`;
+}
+
+function hideAvatarContextMenu() {
+  avatarContextMenu.hidden = true;
+  contextMenuUsername = '';
+}
+
+function updateMessageInputPlaceholder() {
+  messageInput.placeholder = dmRecipient
+    ? `Private message to ${dmRecipient}`
+    : 'Type a message';
+}
+
+function switchToChannel(recipient) {
+  dmRecipient = recipient || '';
+  syncDmPicker();
+  syncChatViewLabel();
+  updateMessageInputPlaceholder();
+  typingIndicator.textContent = '';
+  clearMessageView();
+  getChannelMessages(activeChannelKey()).forEach(msg => renderMessage(msg, { scroll: false }));
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function startDMWith(username) {
+  if (!username || username === lockedUsername) return;
+  switchToChannel(username);
+  messageInput.focus();
+}
+
+function removeMessageFromChannels(id) {
+  channelStore.forEach((list) => {
+    const index = list.findIndex(m => m.id === id);
+    if (index !== -1) list.splice(index, 1);
+  });
+}
 
 /* ------------------------------------------------------------------
    Helpers
@@ -416,7 +655,7 @@ function startEdit(messageElement, data) {
 
     body.querySelector('.edit-save-btn').addEventListener('click', () => {
         const newText = textarea.value;
-        if (!newText.trim()) return;
+        if (!newText.trim() && !data.file) return;
         const finalText = isCode ? wrapCodeFence(newText) : newText;
 
         const now = new Date();
@@ -470,10 +709,23 @@ function restoreMessageBody(body, data) {
 /* ------------------------------------------------------------------
    Render
    ------------------------------------------------------------------ */
+function trimOldMessages() {
+  while (messages.children.length > MESSAGE_HISTORY_LIMIT) {
+    const oldest = messages.firstElementChild;
+    if (!oldest) break;
+    const id = oldest.getAttribute('data-id');
+    if (id) messageDataMap.delete(id);
+    oldest.remove();
+  }
+}
+
 function renderAttachment(file) {
     if (!file || !file.url) return '';
     if (file.type && file.type.startsWith('image/')) {
         return `<div class="attachment-preview"><img src="${escapeHTML(file.url)}" alt="${escapeHTML(file.name)}" loading="lazy"></div>`;
+    }
+    if (file.type && file.type.startsWith('video/')) {
+        return `<div class="attachment-preview"><video src="${escapeHTML(file.url)}" controls preload="metadata" style="max-width:100%;max-height:300px;border-radius:6px;display:block;"></video></div>`;
     }
     const size = formatBytes(file.size);
     return `<a class="file-attachment" href="${escapeHTML(file.url)}" download="${escapeHTML(file.name)}" target="_blank">
@@ -485,7 +737,8 @@ function renderAttachment(file) {
     </a>`;
 }
 
-function renderMessage(data) {
+function renderMessage(data, options = {}) {
+  const { scroll = true } = options;
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row");
 
@@ -502,8 +755,7 @@ function renderMessage(data) {
   const messageElement = document.createElement("div");
   messageElement.classList.add("message");
 
-  const currentUserName = lockedUsername;
-  const isMe = data.name === currentUserName;
+  const isMe = data.name === lockedUsername;
 
   if (isMe) {
     messageRow.classList.add("my-message-row");
@@ -533,8 +785,8 @@ function renderMessage(data) {
       </div>
     </div>`;
 
-  const codeText = getCodeFenceContent(data.text);
   let contentHTML = '';
+  const codeText = getCodeFenceContent(data.text);
   if (data.isCode || codeText !== null) {
     contentHTML += `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`;
   } else if (data.text) {
@@ -577,11 +829,21 @@ function renderMessage(data) {
   avatarElement.className = "message-avatar";
   avatarElement.alt = "";
   avatarElement.src = data.avatar || createAvatarDataUrl(data.name || "Anonymous");
+  if (!isMe) {
+    avatarElement.title = "Right-click for direct message";
+    avatarElement.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showAvatarContextMenu(e.clientX, e.clientY, data.name);
+    });
+  }
 
   messageRow.appendChild(avatarElement);
   messageRow.appendChild(messageElement);
   messages.appendChild(messageRow);
-  messages.scrollTop = messages.scrollHeight;
+  trimOldMessages();
+  if (scroll) {
+    messages.scrollTop = messages.scrollHeight;
+  }
 }
 
 // Real-time edit sync
@@ -640,6 +902,71 @@ socket.on('message reactions', (data) => {
     if (!reactionsBar) return;
 
     reactionsBar.innerHTML = buildReactionsInnerHTML(data.reactions);
+});
+
+socket.on('dm edited', (data) => {
+    const cached = messageDataMap.get(data.id);
+    if (cached) {
+        cached.text = data.text;
+        cached.edited = true;
+        cached.editedAt = data.editedAt;
+        if (data.isCode !== undefined) cached.isCode = data.isCode;
+    }
+
+    const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    if (!row) return;
+
+    const msg = row.querySelector('.message');
+    const body = msg.querySelector('.message-body');
+    const meta = msg.querySelector('.message-meta');
+
+    if (body) {
+        const codeText = getCodeFenceContent(data.text);
+        const isCode = data.isCode || codeText !== null;
+        let newContent = '';
+        if (isCode) {
+            newContent += `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`;
+        } else if (data.text) {
+            newContent += `<div class="message-text">${escapeHTML(data.text)}</div>`;
+        }
+        const cachedFile = cached && cached.file;
+        if (cachedFile) {
+            newContent += renderAttachment(cachedFile);
+        }
+        body.innerHTML = newContent;
+    }
+
+    if (meta) {
+        let editedTag = meta.querySelector('.edited-tag');
+        if (!editedTag) {
+            editedTag = document.createElement('span');
+            editedTag.className = 'edited-tag';
+            const ts = meta.querySelector('.timestamp');
+            if (ts) meta.insertBefore(editedTag, ts);
+            else meta.appendChild(editedTag);
+        }
+        editedTag.textContent = `edited ${formatTime(data.editedAt)}`;
+        editedTag.title = data.editedAt || '';
+    }
+});
+
+socket.on('dm reactions', (data) => {
+    const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    if (!row) return;
+
+    const reactionsBar = row.querySelector('.reactions-bar');
+    if (!reactionsBar) return;
+
+    reactionsBar.innerHTML = buildReactionsInnerHTML(data.reactions);
+});
+
+socket.on('dm deleted', (data) => {
+    removeMessageFromChannels(data.id);
+    messageDataMap.delete(data.id);
+    const rowToRemove = document.querySelector(`.message-row[data-id="${data.id}"]`);
+    if (rowToRemove) {
+        rowToRemove.remove();
+    }
 });
 
 function escapeHTML(str) {
@@ -723,9 +1050,14 @@ function resizeAvatarFile(file) {
     });
 }
 
+syncDmPicker();
+syncChatViewLabel();
+updateMessageInputPlaceholder();
 autoResizeMessageInput();
 
 socket.on("message deleted", (data) => {
+    removeMessageFromChannels(data.id);
+    messageDataMap.delete(data.id);
     const rowToRemove = document.querySelector(`.message-row[data-id="${data.id}"]`);
     if (rowToRemove) {
         rowToRemove.remove();
