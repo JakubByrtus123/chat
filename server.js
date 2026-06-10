@@ -105,8 +105,30 @@ function findDMIndex(id) {
     return savedDMs.findIndex(m => m.id === id);
 }
 
+function handleFileUpload(data) {
+    if (data.file && data.file.data) {
+        const base64Data = data.file.data.split(',')[1];
+        if (base64Data) {
+            const buffer = Buffer.from(base64Data, 'base64');
+            const ext = path.extname(data.file.name) || '.bin';
+            const filename = Date.now() + '-' + Math.random().toString(36).substr(2, 9) + ext;
+            const uploadDir = path.join(__dirname, 'public', 'uploads');
+            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+            const filepath = path.join(uploadDir, filename);
+            fs.writeFileSync(filepath, buffer);
+            data.file = {
+                name: data.file.name,
+                type: data.file.type,
+                size: data.file.size,
+                url: '/uploads/' + filename
+            };
+        }
+    }
+}
+
 const io = new Server(server, {
-    cors: { origin: '*' }
+    cors: { origin: '*' },
+    maxHttpBufferSize: 5e6
 });
 
 app.use(express.static('public'));
@@ -160,6 +182,7 @@ io.on('connection', (socket) => {
             data.avatar = userAvatars[data.name];
         }
         normalizeMessage(data);
+        handleFileUpload(data);
 
         savedMessages.push(data);
         saveMessages(savedMessages);
@@ -175,6 +198,7 @@ io.on('connection', (socket) => {
             data.avatar = userAvatars[sender];
         }
         normalizeMessage(data);
+        handleFileUpload(data);
 
         savedDMs.push(data);
         saveDMs(savedDMs);

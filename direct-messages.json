@@ -8,7 +8,11 @@
     "isMentor": false,
     "isCode": false,
     "to": "Hans",
-    "reactions": {},
+    "reactions": {
+      "😮": [
+        "Stego"
+      ]
+    },
     "edited": false
   },
   {
