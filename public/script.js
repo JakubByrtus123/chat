@@ -13,9 +13,8 @@ const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
 const avatarInput = document.getElementById('avatar-input');
-const chatViewLabel = document.getElementById('chat-view-label');
-const chatViewText = document.getElementById('chat-view-text');
-const dmBackBtn = document.getElementById('dm-back-btn');
+const dmRecipientSelect = document.getElementById('dm-recipient');
+const dmPicker = document.querySelector('.dm-picker');
 const avatarContextMenu = document.getElementById('avatar-context-menu');
 
 let isMentorMode = false;
@@ -84,6 +83,8 @@ setAvatarButton(currentAvatar);
 const MESSAGE_HISTORY_LIMIT = 267;
 const messageDataMap = new Map();
 const channelStore = new Map();
+const knownUsers = new Set();
+let onlineUsers = new Set();
 let dmRecipient = '';
 let contextMenuUsername = '';
 
@@ -179,8 +180,8 @@ avatarContextMenu.querySelector('.context-menu-item').addEventListener('click', 
     if (username) startDMWith(username);
 });
 
-dmBackBtn.addEventListener('click', () => {
-    switchToChannel('');
+dmRecipientSelect.addEventListener('change', () => {
+    switchToChannel(dmRecipientSelect.value);
     messageInput.focus();
 });
 
@@ -318,11 +319,19 @@ messageInput.addEventListener("keydown", (e) => {
     }
 });
 
+socket.on('online users', (users) => {
+  if (!Array.isArray(users)) return;
+  onlineUsers = new Set(users);
+  users.forEach(noteUser);
+  updateRecipientOptions();
+});
+
 // Receive history
 socket.on("chat history", (history) => {
   if (!Array.isArray(history)) return;
   const publicMsgs = history.slice(-MESSAGE_HISTORY_LIMIT);
   channelStore.set('public', [...publicMsgs]);
+  publicMsgs.forEach(msg => noteUser(msg.name));
   if (!dmRecipient) {
     clearMessageView();
     publicMsgs.forEach(msg => renderMessage(msg, { scroll: false }));
@@ -333,6 +342,8 @@ socket.on("chat history", (history) => {
 socket.on('dm history', (history) => {
   if (!Array.isArray(history)) return;
   history.slice(-MESSAGE_HISTORY_LIMIT).forEach(msg => {
+    noteUser(msg.name);
+    noteUser(msg.to);
     addMessageToChannel(msg, determineDMChannelKey(msg));
   });
   if (dmRecipient) {
@@ -342,6 +353,7 @@ socket.on('dm history', (history) => {
 
 socket.on("chat message", (data) => {
   addMessageToChannel(data, 'public');
+  noteUser(data.name);
   if (!dmRecipient) {
     renderMessage(data);
     if (soundsEnabled && data.name !== lockedUsername) {
@@ -353,6 +365,8 @@ socket.on("chat message", (data) => {
 socket.on('direct message', (data) => {
   const key = determineDMChannelKey(data);
   addMessageToChannel(data, key);
+  noteUser(data.name);
+  noteUser(data.to);
   if (activeChannelKey() === key) {
     renderMessage(data);
     if (soundsEnabled && data.name !== lockedUsername) {
@@ -400,17 +414,32 @@ function clearMessageView() {
   messageDataMap.clear();
 }
 
-function syncChatViewLabel() {
-  if (dmRecipient) {
-    chatViewLabel.hidden = false;
-    chatViewLabel.classList.add('dm-active');
-    chatViewText.textContent = `Direct message with ${dmRecipient}`;
-    dmBackBtn.hidden = false;
-  } else {
-    chatViewLabel.hidden = true;
-    chatViewLabel.classList.remove('dm-active');
-    chatViewText.textContent = '';
-    dmBackBtn.hidden = true;
+function updateRecipientOptions() {
+  const current = dmRecipient;
+  const users = [...knownUsers]
+    .filter(name => name !== lockedUsername)
+    .sort((a, b) => a.localeCompare(b));
+
+  dmRecipientSelect.innerHTML = '<option value="">Everyone</option>';
+  users.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = onlineUsers.has(name) ? `${name} · online` : name;
+    dmRecipientSelect.appendChild(option);
+  });
+  dmRecipientSelect.value = current;
+}
+
+function noteUser(name) {
+  if (!name || name === lockedUsername) return;
+  knownUsers.add(name);
+  updateRecipientOptions();
+}
+
+function syncDmPicker() {
+  dmRecipientSelect.value = dmRecipient;
+  if (dmPicker) {
+    dmPicker.classList.toggle('dm-active', Boolean(dmRecipient));
   }
 }
 
@@ -446,7 +475,7 @@ function updateMessageInputPlaceholder() {
 
 function switchToChannel(recipient) {
   dmRecipient = recipient || '';
-  syncChatViewLabel();
+  syncDmPicker();
   updateMessageInputPlaceholder();
   typingIndicator.textContent = '';
   clearMessageView();
@@ -897,7 +926,7 @@ function resizeAvatarFile(file) {
     });
 }
 
-syncChatViewLabel();
+syncDmPicker();
 updateMessageInputPlaceholder();
 autoResizeMessageInput();
 

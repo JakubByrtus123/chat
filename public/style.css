@@ -172,6 +172,54 @@ button:active {
 
 .header-spacer {
     min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.dm-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    max-width: min(220px, 100%);
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-bg-soft);
+    box-shadow: var(--soft-shadow);
+}
+
+.dm-picker-label {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.dm-picker-select {
+    min-width: 0;
+    width: auto;
+    max-width: 148px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    outline: none;
+    cursor: pointer;
+}
+
+.dm-picker.dm-active {
+    border-color: rgba(56, 68, 255, 0.4);
+    background: rgba(56, 68, 255, 0.08);
+}
+
+.dm-picker.dm-active .dm-picker-label {
+    color: var(--accent);
 }
 
 .header-actions {
@@ -604,42 +652,6 @@ textarea::-webkit-scrollbar-thumb {
     transform: none;
 }
 
-.chat-view-label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 12px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--panel-bg-soft);
-    color: var(--text-muted);
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.chat-view-label.dm-active {
-    color: var(--accent);
-    border-color: rgba(56, 68, 255, 0.35);
-}
-
-.dm-back-btn {
-    flex-shrink: 0;
-    padding: 6px 10px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--button-bg);
-    color: var(--text);
-    font-size: 12px;
-    font-weight: 800;
-    cursor: pointer;
-    box-shadow: var(--soft-shadow);
-}
-
-.dm-back-btn:hover {
-    background: var(--button-hover);
-}
-
 .message-row:not(.my-message-row) .message-avatar {
     cursor: context-menu;
 }
@@ -919,6 +931,21 @@ textarea#message::placeholder {
         border: 0;
         border-radius: 0;
         box-shadow: none;
+    }
+
+    .dm-picker {
+        max-width: 108px;
+        padding: 5px 8px;
+        gap: 6px;
+    }
+
+    .dm-picker-label {
+        display: none;
+    }
+
+    .dm-picker-select {
+        max-width: 100%;
+        font-size: 12px;
     }
 
     .brand-lockup {
