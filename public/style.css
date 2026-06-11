@@ -1142,3 +1142,114 @@ textarea#message::placeholder {
 .my-message .delete-msg-btn:hover {
     background-color: rgba(255, 255, 255, 0.2);
 }
+/* ------------------------------------------------------------------
+   Voice messages
+   ------------------------------------------------------------------ */
+.voice-btn {
+    color: var(--text-muted);
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.voice-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.voice-btn.recording {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    animation: pulse-dot 1s infinite;
+}
+
+.recording-overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 100;
+    border-radius: 8px;
+    backdrop-filter: blur(3px);
+}
+
+.recording-pulse {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #ef4444;
+    position: relative;
+}
+
+.recording-pulse::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 2px solid #ef4444;
+    animation: pulse-ring 1.5s infinite;
+}
+
+.recording-pulse::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes pulse-dot {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+.recording-timer {
+    font-size: 28px;
+    font-weight: 800;
+    color: #ffffff;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.recording-hint {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+}
+
+/* Audio attachment */
+.attachment-preview audio {
+    width: 100%;
+    max-width: 320px;
+    min-width: 220px;
+    border-radius: 6px;
+    display: block;
+}
+
+@media (max-width: 640px) {
+    .voice-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+    .recording-timer {
+        font-size: 24px;
+    }
+}

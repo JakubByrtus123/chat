@@ -17,6 +17,9 @@ const fileInput = document.getElementById('file-input');
 const attachmentChip = document.getElementById('attachment-chip');
 const attachmentName = document.getElementById('attachment-name');
 const attachmentClear = document.getElementById('attachment-clear');
+const voiceTrigger = document.getElementById('voice-trigger');
+const recordingOverlay = document.getElementById('recording-overlay');
+const recordingTimer = document.getElementById('recording-timer');
 
 let isCodeMode = false;
 let soundsEnabled = localStorage.getItem('chat_sounds') !== 'false';
@@ -173,6 +176,154 @@ attachmentClear.addEventListener('click', () => {
     pendingAttachment = null;
     attachmentChip.style.display = 'none';
 });
+
+/* ------------------------------------------------------------------
+   Voice messages
+   ------------------------------------------------------------------ */
+let mediaRecorder = null;
+let audioChunks = [];
+let audioStream = null;
+let recordingStartTime = 0;
+let recordingInterval = null;
+let isRecording = false;
+const MAX_VOICE_SECONDS = 60;
+
+function formatVoiceTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function getAudioExtension(mimeType) {
+    if (!mimeType) return '.webm';
+    if (mimeType.includes('mp4') || mimeType.includes('m4a')) return '.m4a';
+    if (mimeType.includes('webm')) return '.webm';
+    if (mimeType.includes('ogg')) return '.ogg';
+    if (mimeType.includes('wav')) return '.wav';
+    if (mimeType.includes('mp3') || mimeType.includes('mpeg')) return '.mp3';
+    return '.webm';
+}
+
+async function startRecording() {
+    if (isRecording) return;
+    try {
+        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(audioStream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            sendVoiceMessage(blob);
+            cleanupRecording();
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        recordingStartTime = Date.now();
+        recordingOverlay.style.display = 'flex';
+        voiceTrigger.classList.add('recording');
+        updateRecordingTimer();
+        recordingInterval = setInterval(updateRecordingTimer, 1000);
+
+        setTimeout(() => {
+            if (isRecording) stopRecording();
+        }, MAX_VOICE_SECONDS * 1000);
+    } catch (err) {
+        console.error('Voice recording failed:', err);
+        alert('Could not access microphone. Please allow microphone permission.');
+        cleanupRecording();
+    }
+}
+
+function updateRecordingTimer() {
+    const elapsed = Date.now() - recordingStartTime;
+    recordingTimer.textContent = formatVoiceTime(elapsed);
+    if (elapsed >= MAX_VOICE_SECONDS * 1000) {
+        stopRecording();
+    }
+}
+
+function stopRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    isRecording = false;
+    clearInterval(recordingInterval);
+    recordingOverlay.style.display = 'none';
+    voiceTrigger.classList.remove('recording');
+}
+
+function cleanupRecording() {
+    if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        audioStream = null;
+    }
+    mediaRecorder = null;
+    audioChunks = [];
+    clearInterval(recordingInterval);
+    recordingOverlay.style.display = 'none';
+    voiceTrigger.classList.remove('recording');
+    isRecording = false;
+}
+
+function sendVoiceMessage(blob) {
+    const now = Date.now();
+    if (now - lastSendTime < RATE_LIMIT_MS) {
+        alert("Please wait a moment before sending another message.");
+        return;
+    }
+    lastSendTime = now;
+
+    const ext = getAudioExtension(blob.type);
+    const filename = `voice-${Date.now()}${ext}`;
+    const file = new File([blob], filename, { type: blob.type || 'audio/webm' });
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        const timeString = new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const payload = {
+            id: Date.now() + Math.random().toString(36).substr(2, 9),
+            name: lockedUsername,
+            avatar: currentAvatar,
+            text: '',
+            time: timeString,
+            isCode: false,
+            file: {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: reader.result
+            }
+        };
+        socket.emit('chat message', payload);
+        socket.emit('typing', { name: lockedUsername, isTyping: false });
+    };
+    reader.readAsDataURL(file);
+}
+
+voiceTrigger.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startRecording();
+});
+
+voiceTrigger.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startRecording();
+});
+
+function onVoiceRelease(e) {
+    if (isRecording) {
+        e.preventDefault();
+        stopRecording();
+    }
+}
+
+document.addEventListener('mouseup', onVoiceRelease);
+document.addEventListener('touchend', onVoiceRelease);
 
 /* ------------------------------------------------------------------
    Emoji Picker
@@ -501,6 +652,9 @@ function renderAttachment(file) {
     }
     if (file.type && file.type.startsWith('video/')) {
         return `<div class="attachment-preview"><video src="${escapeHTML(file.url)}" controls preload="metadata" style="max-width:100%;max-height:300px;border-radius:6px;display:block;"></video></div>`;
+    }
+    if (file.type && file.type.startsWith('audio/')) {
+        return `<div class="attachment-preview"><audio controls src="${escapeHTML(file.url)}" preload="metadata" style="max-width:100%;min-width:220px;display:block;"></audio></div>`;
     }
     const size = formatBytes(file.size);
     return `<a class="file-attachment" href="${escapeHTML(file.url)}" download="${escapeHTML(file.name)}" target="_blank">
