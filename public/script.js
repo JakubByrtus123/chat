@@ -9,26 +9,20 @@ const emojiTrigger = document.getElementById('emoji-trigger');
 const pickerContainer = document.getElementById('picker-container');
 const darkModeToggle = document.getElementById('dark-mode-toggle');
 const soundToggle = document.getElementById('sound-toggle');
-const mentorToggle = document.getElementById('mentor-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
 const avatarInput = document.getElementById('avatar-input');
-const chatViewLabel = document.getElementById('chat-view-label');
-const chatViewText = document.getElementById('chat-view-text');
-const dmBackBtn = document.getElementById('dm-back-btn');
-const dmRecipientSelect = document.getElementById('dm-recipient');
-const dmPicker = document.querySelector('.dm-picker');
-const avatarContextMenu = document.getElementById('avatar-context-menu');
 const fileTrigger = document.getElementById('file-trigger');
 const fileInput = document.getElementById('file-input');
 const attachmentChip = document.getElementById('attachment-chip');
 const attachmentName = document.getElementById('attachment-name');
 const attachmentClear = document.getElementById('attachment-clear');
 
-let isMentorMode = false;
 let isCodeMode = false;
 let soundsEnabled = localStorage.getItem('chat_sounds') !== 'false';
 let pendingAttachment = null;
+let lastSendTime = 0;
+const RATE_LIMIT_MS = 1500;
 
 let SimpleNotificationSounds = null;
 let soundLibraryLoaded = false;
@@ -91,11 +85,6 @@ setAvatarButton(currentAvatar);
 
 const MESSAGE_HISTORY_LIMIT = 267;
 const messageDataMap = new Map();
-const channelStore = new Map();
-const knownUsers = new Set();
-let onlineUsers = new Set();
-let dmRecipient = '';
-let contextMenuUsername = '';
 
 function applyAvatar(avatar) {
     currentAvatar = avatar;
@@ -140,12 +129,6 @@ avatarInput.addEventListener('change', () => {
         alert("Avatar image could not be loaded.");
     });
     avatarInput.value = "";
-});
-
-mentorToggle.addEventListener('click', () => {
-    isMentorMode = !isMentorMode;
-    mentorToggle.classList.toggle('active', isMentorMode);
-    messageInput.focus();
 });
 
 codeToggle.addEventListener('click', () => {
@@ -209,31 +192,6 @@ document.addEventListener('click', (event) => {
     if (!event.target.closest('.reactions-bar')) {
         document.querySelectorAll('.reaction-picker-mini').forEach(p => p.style.display = 'none');
     }
-    if (!event.target.closest('.avatar-context-menu')) {
-        hideAvatarContextMenu();
-    }
-});
-
-document.addEventListener('contextmenu', (event) => {
-    if (!event.target.closest('.message-avatar') || event.target.closest('.my-message-row')) {
-        hideAvatarContextMenu();
-    }
-});
-
-avatarContextMenu.querySelector('.context-menu-item').addEventListener('click', () => {
-    const username = contextMenuUsername;
-    hideAvatarContextMenu();
-    if (username) startDMWith(username);
-});
-
-dmBackBtn.addEventListener('click', () => {
-    switchToChannel('');
-    messageInput.focus();
-});
-
-dmRecipientSelect.addEventListener('change', () => {
-    switchToChannel(dmRecipientSelect.value);
-    messageInput.focus();
 });
 
 async function loadEmojiPicker() {
@@ -298,19 +256,14 @@ darkModeToggle.addEventListener('click', () => {
 let typingTimeout;
 messageInput.addEventListener('input', () => {
     autoResizeMessageInput();
-    const typingPayload = { name: lockedUsername, isTyping: true };
-    if (dmRecipient) typingPayload.to = dmRecipient;
-    socket.emit('typing', typingPayload);
+    socket.emit('typing', { name: lockedUsername, isTyping: true });
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-        const stopPayload = { name: lockedUsername, isTyping: false };
-        if (dmRecipient) stopPayload.to = dmRecipient;
-        socket.emit('typing', stopPayload);
+        socket.emit('typing', { name: lockedUsername, isTyping: false });
     }, 1500);
 });
 
 socket.on('typing', (data) => {
-    if (dmRecipient || data.to) return;
     if (data.isTyping && data.name !== lockedUsername) {
         typingIndicator.textContent = `${data.name} is typing...`;
     } else if (!data.isTyping) {
@@ -318,56 +271,50 @@ socket.on('typing', (data) => {
     }
 });
 
-socket.on('dm typing', (data) => {
-    if (!dmRecipient || data.name !== dmRecipient || data.to !== lockedUsername) return;
-    if (data.isTyping) {
-        typingIndicator.textContent = `${data.name} is typing...`;
-    } else {
-        typingIndicator.textContent = '';
-    }
-});
-
 // Send message
 function sendMessage() {
-  const rawText = messageInput.value;
-  const text = isCodeMode ? wrapCodeFence(rawText) : rawText;
-  if (text.trim() === "" && !pendingAttachment) return;
+    const now = Date.now();
+    if (now - lastSendTime < RATE_LIMIT_MS) {
+        alert("Please wait a moment before sending another message.");
+        return;
+    }
 
-  const stopTyping = { name: lockedUsername, isTyping: false };
-  if (dmRecipient) stopTyping.to = dmRecipient;
-  socket.emit('typing', stopTyping);
+    const rawText = messageInput.value;
+    const text = isCodeMode ? wrapCodeFence(rawText) : rawText;
+    if (text.trim() === "" && !pendingAttachment) return;
+    if (text.length > 1000) {
+        alert("Message too long. Max 1000 characters.");
+        return;
+    }
 
-  const now = new Date();
-  const timeString = now.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    lastSendTime = now;
+    socket.emit('typing', { name: lockedUsername, isTyping: false });
 
-  const payload = {
-    id: Date.now() + Math.random().toString(36).substr(2, 9),
-    name: lockedUsername,
-    avatar: currentAvatar,
-    text: text,
-    time: timeString,
-    isMentor: isMentorMode,
-    isCode: isCodeMessage(text)
-  };
+    const nowDate = new Date();
+    const timeString = nowDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-  if (pendingAttachment) {
-    payload.file = pendingAttachment;
-    pendingAttachment = null;
-    attachmentChip.style.display = 'none';
-  }
+    const payload = {
+        id: Date.now() + Math.random().toString(36).substr(2, 9),
+        name: lockedUsername,
+        avatar: currentAvatar,
+        text: text,
+        time: timeString,
+        isCode: isCodeMessage(text)
+    };
 
-  if (dmRecipient) {
-    payload.to = dmRecipient;
-    socket.emit("direct message", payload);
-  } else {
+    if (pendingAttachment) {
+        payload.file = pendingAttachment;
+        pendingAttachment = null;
+        attachmentChip.style.display = 'none';
+    }
+
     socket.emit("chat message", payload);
-  }
 
-  isCodeMode = false;
-  codeToggle.classList.remove('active');
-  messageInput.value = "";
-  autoResizeMessageInput();
-  messageInput.focus();
+    isCodeMode = false;
+    codeToggle.classList.remove('active');
+    messageInput.value = "";
+    autoResizeMessageInput();
+    messageInput.focus();
 }
 
 sendButton.addEventListener("click", sendMessage);
@@ -378,197 +325,25 @@ messageInput.addEventListener("keydown", (e) => {
     }
 });
 
-socket.on('online users', (users) => {
-  if (!Array.isArray(users)) return;
-  onlineUsers = new Set(users);
-  users.forEach(noteUser);
-  updateRecipientOptions();
-});
-
 // Receive history
 socket.on("chat history", (history) => {
-  if (!Array.isArray(history)) return;
-  const publicMsgs = history.slice(-MESSAGE_HISTORY_LIMIT);
-  channelStore.set('public', [...publicMsgs]);
-  publicMsgs.forEach(msg => noteUser(msg.name));
-  if (!dmRecipient) {
-    clearMessageView();
-    publicMsgs.forEach(msg => renderMessage(msg, { scroll: false }));
+    if (!Array.isArray(history)) return;
+    messages.innerHTML = '';
+    messageDataMap.clear();
+    history.slice(-MESSAGE_HISTORY_LIMIT).forEach(msg => renderMessage(msg, { scroll: false }));
     messages.scrollTop = messages.scrollHeight;
-  }
-});
-
-socket.on('dm history', (history) => {
-  if (!Array.isArray(history)) return;
-  history.slice(-MESSAGE_HISTORY_LIMIT).forEach(msg => {
-    noteUser(msg.name);
-    noteUser(msg.to);
-    addMessageToChannel(msg, determineDMChannelKey(msg));
-  });
-  if (dmRecipient) {
-    switchToChannel(dmRecipient);
-  }
 });
 
 socket.on("chat message", (data) => {
-  addMessageToChannel(data, 'public');
-  noteUser(data.name);
-  if (!dmRecipient) {
     renderMessage(data);
     if (soundsEnabled && data.name !== lockedUsername) {
-      playRandomNotificationSound();
+        playRandomNotificationSound();
     }
-  }
 });
 
-socket.on('direct message', (data) => {
-  const key = determineDMChannelKey(data);
-  addMessageToChannel(data, key);
-  noteUser(data.name);
-  noteUser(data.to);
-  if (activeChannelKey() === key) {
-    renderMessage(data);
-    if (soundsEnabled && data.name !== lockedUsername) {
-      playRandomNotificationSound();
-    }
-  } else if (soundsEnabled && data.name !== lockedUsername) {
-    playRandomNotificationSound();
-  }
+socket.on('error message', (msg) => {
+    alert(msg);
 });
-
-/* ------------------------------------------------------------------
-   Direct messages
-   ------------------------------------------------------------------ */
-function dmChannelKey(otherUser) {
-  return `dm:${[lockedUsername, otherUser].sort().join(':')}`;
-}
-
-function activeChannelKey() {
-  return dmRecipient ? dmChannelKey(dmRecipient) : 'public';
-}
-
-function getChannelMessages(key) {
-  if (!channelStore.has(key)) {
-    channelStore.set(key, []);
-  }
-  return channelStore.get(key);
-}
-
-function addMessageToChannel(data, channelKey) {
-  const list = getChannelMessages(channelKey);
-  if (list.some(m => m.id === data.id)) return;
-  list.push(data);
-  while (list.length > MESSAGE_HISTORY_LIMIT) {
-    list.shift();
-  }
-}
-
-function determineDMChannelKey(data) {
-  const other = data.name === lockedUsername ? data.to : data.name;
-  return dmChannelKey(other);
-}
-
-function clearMessageView() {
-  messages.innerHTML = '';
-  messageDataMap.clear();
-}
-
-function updateRecipientOptions() {
-  const current = dmRecipient;
-  const users = [...knownUsers]
-    .filter(name => name !== lockedUsername)
-    .sort((a, b) => a.localeCompare(b));
-
-  dmRecipientSelect.innerHTML = '<option value="">Everyone</option>';
-  users.forEach(name => {
-    const option = document.createElement('option');
-    option.value = name;
-    option.textContent = onlineUsers.has(name) ? `${name} · online` : name;
-    dmRecipientSelect.appendChild(option);
-  });
-  dmRecipientSelect.value = current;
-}
-
-function noteUser(name) {
-  if (!name || name === lockedUsername) return;
-  knownUsers.add(name);
-  updateRecipientOptions();
-}
-
-function syncDmPicker() {
-  dmRecipientSelect.value = dmRecipient;
-  if (dmPicker) {
-    dmPicker.classList.toggle('dm-active', Boolean(dmRecipient));
-  }
-}
-
-function syncChatViewLabel() {
-  if (dmRecipient) {
-    chatViewLabel.hidden = false;
-    chatViewLabel.classList.add('dm-active');
-    chatViewText.textContent = `Direct message with ${dmRecipient}`;
-    dmBackBtn.hidden = false;
-  } else {
-    chatViewLabel.hidden = true;
-    chatViewLabel.classList.remove('dm-active');
-    chatViewText.textContent = '';
-    dmBackBtn.hidden = true;
-  }
-}
-
-function showAvatarContextMenu(x, y, username) {
-  contextMenuUsername = username;
-  avatarContextMenu.hidden = false;
-  avatarContextMenu.style.left = `${x}px`;
-  avatarContextMenu.style.top = `${y}px`;
-
-  const rect = avatarContextMenu.getBoundingClientRect();
-  let left = x;
-  let top = y;
-  if (left + rect.width > window.innerWidth - 8) {
-    left = window.innerWidth - rect.width - 8;
-  }
-  if (top + rect.height > window.innerHeight - 8) {
-    top = window.innerHeight - rect.height - 8;
-  }
-  avatarContextMenu.style.left = `${left}px`;
-  avatarContextMenu.style.top = `${top}px`;
-}
-
-function hideAvatarContextMenu() {
-  avatarContextMenu.hidden = true;
-  contextMenuUsername = '';
-}
-
-function updateMessageInputPlaceholder() {
-  messageInput.placeholder = dmRecipient
-    ? `Private message to ${dmRecipient}`
-    : 'Type a message';
-}
-
-function switchToChannel(recipient) {
-  dmRecipient = recipient || '';
-  syncDmPicker();
-  syncChatViewLabel();
-  updateMessageInputPlaceholder();
-  typingIndicator.textContent = '';
-  clearMessageView();
-  getChannelMessages(activeChannelKey()).forEach(msg => renderMessage(msg, { scroll: false }));
-  messages.scrollTop = messages.scrollHeight;
-}
-
-function startDMWith(username) {
-  if (!username || username === lockedUsername) return;
-  switchToChannel(username);
-  messageInput.focus();
-}
-
-function removeMessageFromChannels(id) {
-  channelStore.forEach((list) => {
-    const index = list.findIndex(m => m.id === id);
-    if (index !== -1) list.splice(index, 1);
-  });
-}
 
 /* ------------------------------------------------------------------
    Helpers
@@ -761,10 +536,8 @@ function renderMessage(data, options = {}) {
     messageRow.classList.add("my-message-row");
     messageElement.classList.add("my-message");
   }
-  if (data.isMentor) messageElement.classList.add("mentor-message");
 
   const displayName = isMe ? "You" : data.name;
-  const mentorBadge = data.isMentor ? `<span class="mentor-tag">Mentor &#10022;</span>` : "";
 
   const editButtonHTML = isMe
     ? `<button class="msg-action-btn edit-msg-btn" title="Edit message">&#9998;</button>`
@@ -777,7 +550,6 @@ function renderMessage(data, options = {}) {
     <div class="message-header">
       <div class="message-header-left">
         <strong>${escapeHTML(displayName)}</strong>
-        ${mentorBadge}
       </div>
       <div class="message-actions">
         ${editButtonHTML}
@@ -829,13 +601,6 @@ function renderMessage(data, options = {}) {
   avatarElement.className = "message-avatar";
   avatarElement.alt = "";
   avatarElement.src = data.avatar || createAvatarDataUrl(data.name || "Anonymous");
-  if (!isMe) {
-    avatarElement.title = "Right-click for direct message";
-    avatarElement.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      showAvatarContextMenu(e.clientX, e.clientY, data.name);
-    });
-  }
 
   messageRow.appendChild(avatarElement);
   messageRow.appendChild(messageElement);
@@ -902,71 +667,6 @@ socket.on('message reactions', (data) => {
     if (!reactionsBar) return;
 
     reactionsBar.innerHTML = buildReactionsInnerHTML(data.reactions);
-});
-
-socket.on('dm edited', (data) => {
-    const cached = messageDataMap.get(data.id);
-    if (cached) {
-        cached.text = data.text;
-        cached.edited = true;
-        cached.editedAt = data.editedAt;
-        if (data.isCode !== undefined) cached.isCode = data.isCode;
-    }
-
-    const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
-    if (!row) return;
-
-    const msg = row.querySelector('.message');
-    const body = msg.querySelector('.message-body');
-    const meta = msg.querySelector('.message-meta');
-
-    if (body) {
-        const codeText = getCodeFenceContent(data.text);
-        const isCode = data.isCode || codeText !== null;
-        let newContent = '';
-        if (isCode) {
-            newContent += `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`;
-        } else if (data.text) {
-            newContent += `<div class="message-text">${escapeHTML(data.text)}</div>`;
-        }
-        const cachedFile = cached && cached.file;
-        if (cachedFile) {
-            newContent += renderAttachment(cachedFile);
-        }
-        body.innerHTML = newContent;
-    }
-
-    if (meta) {
-        let editedTag = meta.querySelector('.edited-tag');
-        if (!editedTag) {
-            editedTag = document.createElement('span');
-            editedTag.className = 'edited-tag';
-            const ts = meta.querySelector('.timestamp');
-            if (ts) meta.insertBefore(editedTag, ts);
-            else meta.appendChild(editedTag);
-        }
-        editedTag.textContent = `edited ${formatTime(data.editedAt)}`;
-        editedTag.title = data.editedAt || '';
-    }
-});
-
-socket.on('dm reactions', (data) => {
-    const row = document.querySelector(`.message-row[data-id="${data.id}"]`);
-    if (!row) return;
-
-    const reactionsBar = row.querySelector('.reactions-bar');
-    if (!reactionsBar) return;
-
-    reactionsBar.innerHTML = buildReactionsInnerHTML(data.reactions);
-});
-
-socket.on('dm deleted', (data) => {
-    removeMessageFromChannels(data.id);
-    messageDataMap.delete(data.id);
-    const rowToRemove = document.querySelector(`.message-row[data-id="${data.id}"]`);
-    if (rowToRemove) {
-        rowToRemove.remove();
-    }
 });
 
 function escapeHTML(str) {
@@ -1050,13 +750,9 @@ function resizeAvatarFile(file) {
     });
 }
 
-syncDmPicker();
-syncChatViewLabel();
-updateMessageInputPlaceholder();
 autoResizeMessageInput();
 
 socket.on("message deleted", (data) => {
-    removeMessageFromChannels(data.id);
     messageDataMap.delete(data.id);
     const rowToRemove = document.querySelector(`.message-row[data-id="${data.id}"]`);
     if (rowToRemove) {
