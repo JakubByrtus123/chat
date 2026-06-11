@@ -579,10 +579,9 @@ textarea::-webkit-scrollbar-thumb {
 .input-area {
     position: relative;
     display: grid;
-    grid-template-columns: auto minmax(108px, 150px) 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 6px;
-    align-items: start;
+    grid-template-columns: auto minmax(108px, 150px) minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
 }
 
 #name,
@@ -602,8 +601,6 @@ textarea::-webkit-scrollbar-thumb {
     background-size: cover;
     background-position: center;
     cursor: pointer;
-    grid-column: 1;
-    grid-row: 1;
 }
 
 #name {
@@ -614,20 +611,18 @@ textarea::-webkit-scrollbar-thumb {
     font-weight: 900;
     outline: none;
     cursor: default;
-    grid-column: 2;
-    grid-row: 1;
 }
 
 .message-input-wrapper {
     min-width: 0;
-    height: auto;
+    height: 48px;
+    max-height: 48px;
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    gap: 8px;
+    padding: 4px 6px;
     background: var(--panel-bg);
     overflow: hidden;
-    grid-column: 1 / 4;
-    grid-row: 2;
 }
 
 .message-input-wrapper:focus-within {
@@ -639,17 +634,17 @@ textarea#message {
     flex: 1;
     width: 100%;
     min-width: 0;
-    height: 56px !important;
-    min-height: 56px;
-    max-height: 120px;
-    padding: 0;
+    height: 38px !important;
+    min-height: 38px;
+    max-height: 38px;
+    padding: 7px 0;
     resize: none;
     overflow-y: auto;
     border: none;
     outline: none;
     background: transparent;
     color: var(--text);
-    line-height: 1.45;
+    line-height: 1.35;
     scrollbar-width: thin;
     scrollbar-color: var(--line-strong) transparent;
 }
@@ -695,83 +690,6 @@ textarea#message::placeholder {
 
 #emoji-trigger:hover {
     background: var(--button-hover);
-}
-
-.input-toolbar {
-    grid-column: 1 / 4;
-    grid-row: 3;
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    padding: 2px 4px;
-}
-
-.toolbar-spacer {
-    flex: 1;
-}
-
-.toolbar-btn {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    border: none;
-    background: transparent;
-    box-shadow: none;
-    color: var(--text-muted);
-    font-size: 13px;
-    border-radius: 4px;
-}
-
-.toolbar-btn:hover {
-    background: var(--button-hover);
-    color: var(--text);
-    transform: none;
-}
-
-.file-btn.toolbar-btn {
-    font-size: 13px;
-}
-
-.format-btn.toolbar-btn {
-    font-size: 10px;
-    font-weight: 800;
-}
-
-#emoji-trigger.toolbar-btn {
-    font-size: 14px;
-}
-
-.input-toolbar .send-btn {
-    background: transparent !important;
-    color: var(--accent) !important;
-    border: none !important;
-    box-shadow: none !important;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-}
-
-.input-toolbar .send-btn:hover {
-    background: var(--button-hover) !important;
-    color: var(--accent-hover) !important;
-}
-
-.input-toolbar .send-btn svg {
-    width: 14px;
-    height: 14px;
-    stroke-width: 2.5;
-}
-
-.input-toolbar .format-btn.active {
-    background: var(--accent) !important;
-    color: var(--accent-text) !important;
-    border-radius: 4px;
 }
 
 .send-btn,
@@ -964,20 +882,18 @@ textarea#message::placeholder {
 
     .input-area {
         grid-template-columns: auto 1fr auto;
-        grid-template-rows: auto auto auto;
-        gap: 8px;
+        grid-template-rows: auto auto;
+        gap: 10px;
     }
 
     .avatar-button { grid-column: 1; grid-row: 1; }
     #name { grid-column: 2; grid-row: 1; }
+    .send-btn { grid-column: 3; grid-row: 1; }
     .message-input-wrapper {
         grid-column: 1 / 4;
         grid-row: 2;
-        height: auto;
-    }
-    .input-toolbar {
-        grid-column: 1 / 4;
-        grid-row: 3;
+        height: 48px;
+        max-height: 48px;
     }
 }
 
@@ -1027,44 +943,31 @@ textarea#message::placeholder {
     }
 
     .input-area {
-        grid-template-columns: auto 1fr;
-        grid-template-rows: auto auto auto;
-        gap: 6px;
+        grid-template-columns: auto 1fr auto;
+        gap: 8px;
     }
 
     .avatar-button {
-        grid-column: 1;
-        grid-row: 1;
+        grid-column: 1 / 2;
         width: 44px;
         height: 44px;
     }
 
     #name {
-        grid-column: 2;
-        grid-row: 1;
+        grid-column: 2 / 3;
         height: 44px;
     }
 
     .message-input-wrapper {
         grid-column: 1 / 3;
         grid-row: 2;
-        height: auto;
+        height: 46px;
+        max-height: 46px;
     }
 
-    .input-toolbar {
-        grid-column: 1 / 3;
-        grid-row: 3;
-    }
-
-    .toolbar-btn {
-        width: 22px;
-        height: 22px;
-        min-width: 22px;
-    }
-
-    .input-toolbar .send-btn svg {
-        width: 13px;
-        height: 13px;
+    .send-btn {
+        grid-column: 3 / 4;
+        grid-row: 2;
     }
 
     .icon-btn {
