@@ -7,7 +7,7 @@ const sendButton = document.getElementById("send");
 const typingIndicator = document.getElementById("typing-indicator");
 const emojiTrigger = document.getElementById('emoji-trigger');
 const pickerContainer = document.getElementById('picker-container');
-const darkModeToggle = document.getElementById('dark-mode-toggle');
+// const darkModeToggle = document.getElementById('dark-mode-toggle');
 const soundToggle = document.getElementById('sound-toggle');
 const codeToggle = document.getElementById('code-toggle');
 const avatarButton = document.getElementById('avatar-button');
@@ -391,17 +391,17 @@ soundToggle.addEventListener('click', () => {
 });
 
 // Dark Mode
-if (localStorage.getItem('theme') === 'dark') {
-    document.body.classList.add('dark-theme');
-    darkModeToggle.innerHTML = '&#9788;';
-}
+// if (localStorage.getItem('theme') === 'dark') {
+//     document.body.classList.add('dark-theme');
+//     darkModeToggle.innerHTML = '&#9788;';
+// }
 
-darkModeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('dark-theme');
-    const isDark = document.body.classList.contains('dark-theme');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    darkModeToggle.innerHTML = isDark ? '&#9788;' : '&#9790;';
-});
+// darkModeToggle.addEventListener('click', () => {
+//     document.body.classList.toggle('dark-theme');
+//     const isDark = document.body.classList.contains('dark-theme');
+//     localStorage.setItem('theme', isDark ? 'dark' : 'light');
+//     darkModeToggle.innerHTML = isDark ? '&#9788;' : '&#9790;';
+// });
 
 // Typing indicator
 let typingTimeout;
