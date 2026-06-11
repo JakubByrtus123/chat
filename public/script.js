@@ -703,7 +703,9 @@ function renderMessage(data, options = {}) {
   let headerHTML = `
     <div class="message-header">
       <div class="message-header-left">
+        <img class="message-header-avatar" src="${escapeHTML(data.avatar || createAvatarDataUrl(data.name || 'Anonymous'))}" alt="">
         <strong>${escapeHTML(displayName)}</strong>
+        <span class="timestamp-inline">${data.time}</span>
       </div>
       <div class="message-actions">
         ${editButtonHTML}
@@ -730,7 +732,7 @@ function renderMessage(data, options = {}) {
     ${headerHTML}
     <div class="message-body">${contentHTML}</div>
     <div class="message-footer">
-      <div class="message-meta">${editedHTML}<span class="timestamp">${data.time}</span></div>
+      ${editedHTML ? `<div class="message-meta">${editedHTML}</div>` : ''}
       <div class="reactions-bar" data-id="${data.id}">
         ${buildReactionsInnerHTML(data.reactions)}
       </div>
@@ -751,12 +753,6 @@ function renderMessage(data, options = {}) {
     reactionsBar.addEventListener('click', (e) => handleReactionClick(e, data.id));
   }
 
-  const avatarElement = document.createElement("img");
-  avatarElement.className = "message-avatar";
-  avatarElement.alt = "";
-  avatarElement.src = data.avatar || createAvatarDataUrl(data.name || "Anonymous");
-
-  messageRow.appendChild(avatarElement);
   messageRow.appendChild(messageElement);
   messages.appendChild(messageRow);
   trimOldMessages();
