@@ -88,7 +88,7 @@ body {
     margin: 0;
     min-height: 100vh;
     height: 100vh;
-    padding: clamp(16px, 4vw, 48px);
+    padding: clamp(8px, 2vw, 24px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -143,12 +143,12 @@ button:active {
 .chat-container {
     position: relative;
     width: min(100%, 940px);
-    height: min(760px, calc(100vh - 96px));
-    max-height: calc(100vh - 96px);
+    height: min(760px, calc(100vh - 32px));
+    max-height: calc(100vh - 32px);
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: clamp(10px, 2vw, 20px);
+    gap: 2px;
+    padding: clamp(4px, 1vw, 10px);
     background: var(--panel-bg);
     border: 1px solid rgba(132, 157, 255, 0.38);
     border-radius: 8px;
@@ -159,14 +159,15 @@ button:active {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 6px;
     flex-wrap: nowrap;
+    padding: 2px 0;
 }
 
 .header-user {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     min-width: 0;
 }
 
@@ -244,10 +245,10 @@ button:active {
     flex: 1;
     height: auto;
     min-height: 0;
-    padding: clamp(6px, 1vw, 10px);
+    padding: 4px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
@@ -291,10 +292,10 @@ textarea::-webkit-scrollbar-thumb {
 
 .message {
     max-width: min(86%, 660px);
-    padding: 5px 10px 4px;
+    padding: 3px 8px 2px;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 0px;
     align-self: flex-start;
     background: var(--message-other-bg);
     color: var(--message-other-text);
@@ -640,7 +641,7 @@ textarea::-webkit-scrollbar-thumb {
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
 #name,
@@ -1005,17 +1006,17 @@ textarea#message::placeholder {
 
 @media (max-width: 900px) {
     body {
-        padding: 22px;
+        padding: 8px;
         align-items: stretch;
     }
 
     .chat-container {
-        height: calc(100vh - 44px);
-        max-height: calc(100vh - 44px);
+        height: calc(100vh - 16px);
+        max-height: calc(100vh - 16px);
     }
 
     .input-area {
-        gap: 8px;
+        gap: 2px;
     }
 }
 
@@ -1030,7 +1031,7 @@ textarea#message::placeholder {
         width: 100%;
         height: 100dvh;
         max-height: 100dvh;
-        padding: 18px 12px 12px;
+        padding: 4px 6px 4px;
         border: 0;
         border-radius: 0;
         box-shadow: none;
