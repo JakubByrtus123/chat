@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat</title>
     <link rel="stylesheet" href="style.css">
+    <base target="_blank">
 <base target="_blank">
 </head>
 <body>
@@ -43,7 +44,13 @@
                 <button id="file-trigger" class="icon-btn file-btn" type="button" title="Attach file" aria-label="Attach file">&#128206;</button>
                 <button id="code-toggle" class="format-btn icon-btn" type="button" title="Format as code" aria-label="Format as code">&lt;/&gt;</button>
                 <textarea id="message" rows="1" placeholder="Type a message" aria-label="Message" autocomplete="off" maxlength="1000"></textarea>
-                <button id="emoji-trigger" class="icon-btn" type="button" title="Emoji" aria-label="Emoji">&#128512;</button> 
+                <button id="emoji-trigger" class="icon-btn" type="button" title="Emoji" aria-label="Emoji">&#128512;</button>
+                <button id="voice-trigger" class="icon-btn voice-btn" type="button" title="Hold to record voice" aria-label="Hold to record voice">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
             </div>
 
             <button id="send" class="send-btn icon-btn" type="button" title="Send message" aria-label="Send message">
@@ -56,6 +63,14 @@
             <input id="file-input" type="file" hidden>
             <div id="picker-container"></div>
         </section>
+
+        <div id="recording-overlay" class="recording-overlay" style="display:none">
+            <div class="recording-pulse"></div>
+            <div class="recording-info">
+                <div id="recording-timer" class="recording-timer">0:00</div>
+                <div class="recording-hint">Release to send</div>
+            </div>
+        </div>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
