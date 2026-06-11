@@ -15,6 +15,11 @@
                 <input id="avatar-input" type="file" accept="image/*" hidden>
                 <input id="name" type="text" placeholder="Your name" aria-label="Your name" readonly autocomplete="off">
             </div>
+            <div class="header-center">
+                <span id="online-counter" class="online-counter" title="People online">• 0
+                    <div id="online-list" class="online-list-tooltip"></div>
+                </span>
+            </div>
             <div class="header-actions">
                 <button id="sound-toggle" class="icon-btn sound-toggle-btn" type="button" aria-label="Mute notification sounds" title="Notification sounds on">
                     <svg class="sound-icon sound-icon-on" viewBox="0 0 24 24" aria-hidden="true">
@@ -54,6 +59,7 @@
                 <button id="file-trigger" class="icon-btn toolbar-btn file-btn" type="button" title="Attach file" aria-label="Attach file">&#128206;</button>
                 <button id="code-toggle" class="format-btn icon-btn toolbar-btn" type="button" title="Format as code" aria-label="Format as code">&lt;/&gt;</button>
                 <button id="emoji-trigger" class="icon-btn toolbar-btn" type="button" title="Emoji" aria-label="Emoji">&#128512;</button>
+                <button id="dice-trigger" class="icon-btn toolbar-btn" type="button" title="Roll dice" aria-label="Roll dice">🎲</button>
                 <div class="toolbar-spacer"></div>
                 <button id="send" class="send-btn icon-btn toolbar-btn" type="button" title="Send message" aria-label="Send message">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
