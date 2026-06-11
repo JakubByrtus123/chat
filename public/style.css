@@ -13,7 +13,7 @@ html {
     --panel-bg: rgba(255, 255, 255, 0.94);
     --panel-bg-soft: rgba(244, 249, 255, 0.88);
     --text: #07122f;
-    --text-muted: #64708c;
+    --text-muted: #98b6fb;
     --line: #d7e1ff;
     --line-strong: #3844ff;
     --grid-line: rgba(56, 68, 255, 0.08);
@@ -147,8 +147,8 @@ button:active {
     max-height: calc(100vh - 96px);
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    padding: clamp(18px, 3.2vw, 36px);
+    gap: 8px;
+    padding: clamp(10px, 2vw, 20px);
     background: var(--panel-bg);
     border: 1px solid rgba(132, 157, 255, 0.38);
     border-radius: 8px;
@@ -157,9 +157,51 @@ button:active {
 
 .chat-header {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     gap: 12px;
+    flex-wrap: nowrap;
+}
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.header-avatar {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--button-bg);
+    box-shadow: var(--soft-shadow);
+}
+
+.header-user #name {
+    width: auto;
+    min-width: 80px;
+    max-width: 160px;
+    height: 32px;
+    padding: 0 10px;
+    color: var(--text);
+    font-weight: 700;
+    font-size: 13px;
+    outline: none;
+    cursor: default;
+    background: var(--button-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: var(--soft-shadow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .header-actions {
@@ -167,6 +209,7 @@ button:active {
     justify-content: flex-end;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .sound-toggle-btn {
@@ -201,10 +244,10 @@ button:active {
     flex: 1;
     height: auto;
     min-height: 0;
-    padding: clamp(12px, 2vw, 18px);
+    padding: clamp(6px, 1vw, 10px);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 4px;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
@@ -238,39 +281,20 @@ textarea::-webkit-scrollbar-thumb {
 .message-row {
     width: 100%;
     display: flex;
-    align-items: flex-end;
-    gap: 10px;
+    align-items: flex-start;
+    gap: 0;
 }
 
 .message-row.my-message-row {
     justify-content: flex-end;
 }
 
-.message-row.my-message-row .message-avatar {
-    order: 2;
-}
-
-.message-avatar {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    object-fit: cover;
-    border: 2px solid #ffffff;
-    border-radius: 8px;
-    box-shadow: var(--soft-shadow);
-    background: var(--button-bg);
-}
-
-.dark-theme .message-avatar {
-    border-color: rgba(255, 255, 255, 0.18);
-}
-
 .message {
     max-width: min(86%, 660px);
-    padding: 12px 14px;
+    padding: 5px 10px 4px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 1px;
     align-self: flex-start;
     background: var(--message-other-bg);
     color: var(--message-other-text);
@@ -279,6 +303,7 @@ textarea::-webkit-scrollbar-thumb {
     box-shadow: var(--soft-shadow);
     overflow-wrap: anywhere;
     contain: paint;
+    font-size: 13px;
 }
 
 .message.my-message {
@@ -291,24 +316,56 @@ textarea::-webkit-scrollbar-thumb {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 900;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    line-height: 1.2;
+    margin-bottom: 2px;
 }
 
 .message-header-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     min-width: 0;
+    overflow: hidden;
+}
+
+.message-header-left strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.message-header-avatar {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--button-bg);
+    border: 1px solid var(--line);
+}
+
+.timestamp-inline {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+    opacity: 0.7;
+    margin-left: 2px;
+    white-space: nowrap;
+}
+
+.my-message .timestamp-inline {
+    color: rgba(255,255,255,0.7);
 }
 
 .message-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     flex-shrink: 0;
 }
 
@@ -318,9 +375,9 @@ textarea::-webkit-scrollbar-thumb {
     color: currentColor;
     opacity: 0.4;
     cursor: pointer;
-    font-size: 13px;
-    padding: 2px 6px;
-    border-radius: 4px;
+    font-size: 11px;
+    padding: 1px 4px;
+    border-radius: 3px;
     line-height: 1;
 }
 
@@ -335,17 +392,18 @@ textarea::-webkit-scrollbar-thumb {
 }
 
 .message-text {
-    line-height: 1.45;
+    line-height: 1.35;
+    font-size: 13px;
 }
 
 .code-block-wrapper {
     width: 100%;
     margin-top: 2px;
-    padding: 12px;
+    padding: 6px 8px;
     overflow-x: auto;
     background: var(--code-bg);
     border: 1px solid rgba(56, 201, 255, 0.34);
-    border-radius: 6px;
+    border-radius: 4px;
     box-shadow: var(--soft-shadow);
 }
 
@@ -353,8 +411,8 @@ textarea::-webkit-scrollbar-thumb {
     margin: 0;
     color: var(--code-text);
     font-family: "Fira Code", Consolas, "Courier New", monospace;
-    font-size: 13px;
-    line-height: 1.55;
+    font-size: 11px;
+    line-height: 1.4;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
@@ -362,26 +420,28 @@ textarea::-webkit-scrollbar-thumb {
 .message-footer {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-top: 2px;
+    gap: 1px;
+    margin-top: 1px;
 }
 
 .message-meta {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     align-self: flex-end;
+    font-size: 10px;
+    color: var(--text-muted);
 }
 
 .timestamp {
     color: currentColor;
     opacity: 0.62;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 10px;
+    font-weight: 600;
 }
 
 .edited-tag {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
     font-style: italic;
     opacity: 0.7;
@@ -391,18 +451,18 @@ textarea::-webkit-scrollbar-thumb {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
 }
 
 .reaction-pill {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
+    gap: 2px;
+    padding: 1px 5px;
     background: var(--button-bg);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    font-size: 12px;
+    border-radius: 10px;
+    font-size: 11px;
     cursor: pointer;
     transition: background 0.1s, transform 0.1s;
     color: var(--text);
@@ -421,11 +481,11 @@ textarea::-webkit-scrollbar-thumb {
 }
 
 .reaction-emoji {
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .reaction-count {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
 }
 
@@ -455,8 +515,8 @@ textarea::-webkit-scrollbar-thumb {
 }
 
 .add-reaction-btn {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     padding: 0;
     display: inline-flex;
     align-items: center;
@@ -465,7 +525,7 @@ textarea::-webkit-scrollbar-thumb {
     border: 1px solid var(--line);
     border-radius: 50%;
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
     line-height: 1;
@@ -481,11 +541,11 @@ textarea::-webkit-scrollbar-thumb {
 .reaction-picker-mini {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    padding: 6px;
+    gap: 2px;
+    padding: 4px;
     background: var(--panel-bg);
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 4px;
     box-shadow: var(--soft-shadow);
     z-index: 10;
 }
@@ -493,10 +553,10 @@ textarea::-webkit-scrollbar-thumb {
 .reaction-picker-mini button {
     background: transparent;
     border: none;
-    font-size: 18px;
+    font-size: 14px;
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 1px 4px;
+    border-radius: 3px;
     line-height: 1;
 }
 
@@ -569,20 +629,18 @@ textarea::-webkit-scrollbar-thumb {
 }
 
 .typing-indicator {
-    min-height: 20px;
-    padding-left: 6px;
+    min-height: 14px;
+    padding-left: 4px;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 11px;
     font-style: italic;
 }
 
 .input-area {
     position: relative;
-    display: grid;
-    grid-template-columns: auto minmax(108px, 150px) 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 6px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 #name,
@@ -596,26 +654,23 @@ textarea::-webkit-scrollbar-thumb {
 }
 
 .avatar-button {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     padding: 0;
     background-size: cover;
     background-position: center;
     cursor: pointer;
-    grid-column: 1;
-    grid-row: 1;
 }
 
 #name {
     width: 100%;
-    height: 48px;
-    padding: 0 16px;
+    height: 36px;
+    padding: 0 10px;
     color: var(--text);
-    font-weight: 900;
+    font-weight: 700;
+    font-size: 13px;
     outline: none;
     cursor: default;
-    grid-column: 2;
-    grid-row: 1;
 }
 
 .message-input-wrapper {
@@ -626,8 +681,6 @@ textarea::-webkit-scrollbar-thumb {
     padding: 8px 12px;
     background: var(--panel-bg);
     overflow: hidden;
-    grid-column: 1 / 4;
-    grid-row: 2;
 }
 
 .message-input-wrapper:focus-within {
@@ -698,8 +751,6 @@ textarea#message::placeholder {
 }
 
 .input-toolbar {
-    grid-column: 1 / 4;
-    grid-row: 3;
     display: flex;
     align-items: center;
     gap: 2px;
@@ -841,15 +892,15 @@ textarea#message::placeholder {
 
 /* File previews in messages */
 .attachment-preview {
-    margin-top: 6px;
+    margin-top: 4px;
     max-width: 100%;
 }
 
 .attachment-preview img,
 .attachment-preview video {
     max-width: 100%;
-    max-height: 300px;
-    border-radius: 6px;
+    max-height: 180px;
+    border-radius: 4px;
     border: 1px solid var(--line);
     object-fit: cover;
     display: block;
@@ -858,15 +909,15 @@ textarea#message::placeholder {
 .file-attachment {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 6px;
-    padding: 10px 14px;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 5px 8px;
     background: var(--button-bg);
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 4px;
     color: var(--text);
     text-decoration: none;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     max-width: 100%;
     transition: background 0.1s, transform 0.1s;
@@ -878,14 +929,14 @@ textarea#message::placeholder {
 }
 
 .file-icon {
-    font-size: 24px;
+    font-size: 16px;
     flex-shrink: 0;
 }
 
 .file-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
 }
 
@@ -893,12 +944,13 @@ textarea#message::placeholder {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 11px;
 }
 
 .file-size {
-    font-size: 11px;
+    font-size: 9px;
     color: var(--text-muted);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 #picker-container {
@@ -963,21 +1015,7 @@ textarea#message::placeholder {
     }
 
     .input-area {
-        grid-template-columns: auto 1fr auto;
-        grid-template-rows: auto auto auto;
         gap: 8px;
-    }
-
-    .avatar-button { grid-column: 1; grid-row: 1; }
-    #name { grid-column: 2; grid-row: 1; }
-    .message-input-wrapper {
-        grid-column: 1 / 4;
-        grid-row: 2;
-        height: auto;
-    }
-    .input-toolbar {
-        grid-column: 1 / 4;
-        grid-row: 3;
     }
 }
 
@@ -1017,43 +1055,24 @@ textarea#message::placeholder {
     }
 
     .message {
-        max-width: calc(100% - 52px);
-    }
-
-    .message-avatar {
-        width: 36px;
-        height: 36px;
-        min-width: 36px;
+        max-width: calc(100% - 40px);
     }
 
     .input-area {
-        grid-template-columns: auto 1fr;
-        grid-template-rows: auto auto auto;
         gap: 6px;
     }
 
-    .avatar-button {
-        grid-column: 1;
-        grid-row: 1;
-        width: 44px;
-        height: 44px;
+    .header-user #name {
+        max-width: 120px;
+        min-width: 60px;
+        font-size: 12px;
+        padding: 0 8px;
+        height: 28px;
     }
 
-    #name {
-        grid-column: 2;
-        grid-row: 1;
-        height: 44px;
-    }
-
-    .message-input-wrapper {
-        grid-column: 1 / 3;
-        grid-row: 2;
-        height: auto;
-    }
-
-    .input-toolbar {
-        grid-column: 1 / 3;
-        grid-row: 3;
+    .header-avatar {
+        width: 28px;
+        height: 28px;
     }
 
     .toolbar-btn {

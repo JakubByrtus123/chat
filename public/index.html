@@ -10,6 +10,11 @@
 <body>
     <main class="chat-container">
         <header class="chat-header">
+            <div class="header-user">
+                <button id="avatar-button" class="avatar-button header-avatar" type="button" title="Change profile picture" aria-label="Change profile picture"></button>
+                <input id="avatar-input" type="file" accept="image/*" hidden>
+                <input id="name" type="text" placeholder="Your name" aria-label="Your name" readonly autocomplete="off">
+            </div>
             <div class="header-actions">
                 <button id="sound-toggle" class="icon-btn sound-toggle-btn" type="button" aria-label="Mute notification sounds" title="Notification sounds on">
                     <svg class="sound-icon sound-icon-on" viewBox="0 0 24 24" aria-hidden="true">
@@ -34,10 +39,6 @@
                 <span id="attachment-name"></span>
                 <button id="attachment-clear" class="icon-btn" type="button" aria-label="Remove attachment">&#10005;</button>
             </div>
-
-            <button id="avatar-button" class="avatar-button" type="button" title="Change profile picture" aria-label="Change profile picture"></button>
-            <input id="avatar-input" type="file" accept="image/*" hidden>
-            <input id="name" type="text" placeholder="Your name" aria-label="Your name" readonly autocomplete="off">
 
             <div class="message-input-wrapper">
                 <textarea id="message" rows="1" placeholder="Type a message" aria-label="Message" autocomplete="off" maxlength="1000"></textarea>
