@@ -97,14 +97,36 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
+function broadcastOnlineUsers() {
+    const uniqueUsers = new Set();
+    io.sockets.sockets.forEach((socket) => {
+        if (socket.data.username) {
+            uniqueUsers.add(socket.data.username);
+        }
+    });
+    const users = Array.from(uniqueUsers).sort();
+    io.emit('online users', { count: users.length, users: users });
+}
+
 io.on('connection', (socket) => {
     console.log('A user connected');
     socket.emit('chat history', savedMessages.slice(-MESSAGE_HISTORY_LIMIT));
+    broadcastOnlineUsers();
 
     socket.on('join', (data) => {
         const username = data && data.username;
         if (!username) return;
+        
+        // Remove any previous socket with the same username
+        io.sockets.sockets.forEach((s) => {
+            if (s.data.username === username && s.id !== socket.id) {
+                s.data.username = null;  // Clear the username immediately
+                s.disconnect(true);  // Force disconnect
+            }
+        });
+        
         socket.data.username = username;
+        broadcastOnlineUsers();
     });
 
     socket.on('get avatar', (data) => {
@@ -216,6 +238,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         rateLimitMap.delete(socket.id);
         console.log('A user disconnected');
+        broadcastOnlineUsers();
     });
 });
 

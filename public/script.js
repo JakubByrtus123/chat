@@ -6,6 +6,7 @@ const messageInput = document.getElementById("message");
 const sendButton = document.getElementById("send");
 const typingIndicator = document.getElementById("typing-indicator");
 const emojiTrigger = document.getElementById('emoji-trigger');
+const diceTrigger = document.getElementById('dice-trigger');
 const pickerContainer = document.getElementById('picker-container');
 // const darkModeToggle = document.getElementById('dark-mode-toggle');
 const soundToggle = document.getElementById('sound-toggle');
@@ -20,6 +21,7 @@ const attachmentClear = document.getElementById('attachment-clear');
 const voiceTrigger = document.getElementById('voice-trigger');
 const recordingOverlay = document.getElementById('recording-overlay');
 const recordingTimer = document.getElementById('recording-timer');
+const onlineCounter = document.getElementById('online-counter');
 
 let isCodeMode = false;
 let soundsEnabled = localStorage.getItem('chat_sounds') !== 'false';
@@ -118,6 +120,24 @@ socket.on('user avatar', (data) => {
     }
 });
 
+socket.on('online users', (data) => {
+    const count = data.count || 0;
+    const users = data.users || [];
+    const listHtml = users.map(user => `<div class="online-user-item">${user}</div>`).join('');
+    onlineCounter.innerHTML = '• ' + count + '<div id="online-list" class="online-list-tooltip">' + listHtml + '</div>';
+});
+
+// Handle click on online counter to toggle list
+onlineCounter.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onlineCounter.classList.toggle('active');
+});
+
+// Close list when clicking outside
+document.addEventListener('click', () => {
+    onlineCounter.classList.remove('active');
+});
+
 avatarButton.addEventListener('click', () => {
     avatarInput.click();
 });
@@ -138,6 +158,10 @@ codeToggle.addEventListener('click', () => {
     isCodeMode = !isCodeMode;
     codeToggle.classList.toggle('active', isCodeMode);
     messageInput.focus();
+});
+
+diceTrigger.addEventListener('click', () => {
+    rollDice();
 });
 
 /* ------------------------------------------------------------------
@@ -423,6 +447,35 @@ socket.on('typing', (data) => {
 });
 
 // Send message
+function rollDice() {
+    const now = Date.now();
+    if (now - lastSendTime < RATE_LIMIT_MS) {
+        return;
+    }
+    
+    lastSendTime = now;
+    const result = Math.floor(Math.random() * 6) + 1;
+    
+    const nowDate = new Date();
+    const timeString = nowDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    
+    const diceEmojis = ['🎲', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    const diceText = `🎲 rolled a ${result}!`;
+    
+    const payload = {
+        id: Date.now() + Math.random().toString(36).substr(2, 9),
+        name: lockedUsername,
+        avatar: currentAvatar,
+        text: diceText,
+        time: timeString,
+        isDice: true,
+        diceResult: result,
+        isCode: false
+    };
+    
+    socket.emit("chat message", payload);
+}
+
 function sendMessage() {
     const now = Date.now();
     if (now - lastSendTime < RATE_LIMIT_MS) {
@@ -475,6 +528,148 @@ messageInput.addEventListener("keydown", (e) => {
         sendMessage();
     }
 });
+
+// Handle image view button
+messages.addEventListener("click", (e) => {
+    if (e.target.classList.contains("view-icon")) {
+        e.preventDefault();
+        const imageUrl = e.target.dataset.imageUrl;
+        if (imageUrl) showImageModal(imageUrl);
+    }
+});
+
+function showImageModal(imageUrl) {
+    const modal = document.createElement("div");
+    modal.className = "image-modal";
+    modal.innerHTML = `
+        <div class="image-modal-bg"></div>
+        <div class="image-modal-container">
+            <div class="image-modal-controls">
+                <button class="image-modal-reset" title="Reset zoom/position">⟲</button>
+                <button class="image-modal-close" title="Close (Esc)">×</button>
+            </div>
+            <div class="image-modal-viewer">
+                <img src="${imageUrl}" alt="Preview" class="image-modal-img" draggable="false">
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const viewer = modal.querySelector(".image-modal-viewer");
+    const img = modal.querySelector(".image-modal-img");
+    let scale = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let lastTouchDistance = 0;
+    
+    function updateTransform() {
+        img.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    }
+    
+    function resetZoom() {
+        scale = 1;
+        offsetX = 0;
+        offsetY = 0;
+        updateTransform();
+    }
+    
+    function getTouchDistance(touches) {
+        if (touches.length < 2) return 0;
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    function getTouchCenter(touches) {
+        let cx = 0, cy = 0;
+        for (let touch of touches) {
+            cx += touch.clientX;
+            cy += touch.clientY;
+        }
+        return { x: cx / touches.length, y: cy / touches.length };
+    }
+    
+    // Mouse events
+    viewer.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = Math.max(1, Math.min(scale * delta, 5));
+        scale = newScale;
+        updateTransform();
+    });
+    
+    img.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        dragStartX = e.clientX - offsetX;
+        dragStartY = e.clientY - offsetY;
+        img.style.cursor = "grabbing";
+    });
+    
+    document.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+        offsetX = e.clientX - dragStartX;
+        offsetY = e.clientY - dragStartY;
+        updateTransform();
+    });
+    
+    document.addEventListener("mouseup", () => {
+        isDragging = false;
+        img.style.cursor = "grab";
+    });
+    
+    // Touch events for mobile
+    viewer.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+            isDragging = true;
+            dragStartX = e.touches[0].clientX - offsetX;
+            dragStartY = e.touches[0].clientY - offsetY;
+        } else if (e.touches.length === 2) {
+            isDragging = false;
+            lastTouchDistance = getTouchDistance(e.touches);
+        }
+    }, { passive: false });
+    
+    viewer.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+            offsetX = e.touches[0].clientX - dragStartX;
+            offsetY = e.touches[0].clientY - dragStartY;
+            updateTransform();
+        } else if (e.touches.length === 2) {
+            const distance = getTouchDistance(e.touches);
+            if (lastTouchDistance > 0) {
+                const delta = distance / lastTouchDistance;
+                const newScale = Math.max(1, Math.min(scale * delta, 5));
+                scale = newScale;
+                updateTransform();
+            }
+            lastTouchDistance = distance;
+        }
+    }, { passive: false });
+    
+    viewer.addEventListener("touchend", () => {
+        isDragging = false;
+        lastTouchDistance = 0;
+    });
+    
+    const close = () => modal.remove();
+    modal.querySelector(".image-modal-close").addEventListener("click", close);
+    modal.querySelector(".image-modal-reset").addEventListener("click", resetZoom);
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal.querySelector(".image-modal-bg")) close();
+    });
+    document.addEventListener("keydown", function handleEsc(e) {
+        if (e.key === "Escape") {
+            close();
+            document.removeEventListener("keydown", handleEsc);
+        }
+    });
+    
+    img.style.cursor = "grab";
+}
 
 // Receive history
 socket.on("chat history", (history) => {
@@ -595,19 +790,30 @@ function startEdit(messageElement, data) {
         }
         restoreMessageBody(body, cached || { ...data, text: finalText, edited: true, editedAt: now.toISOString() });
 
-        const meta = messageElement.querySelector('.message-meta');
-        if (meta) {
-            let editedTag = meta.querySelector('.edited-tag');
-            if (!editedTag) {
-                editedTag = document.createElement('span');
-                editedTag.className = 'edited-tag';
-                const ts = meta.querySelector('.timestamp');
-                if (ts) meta.insertBefore(editedTag, ts);
-                else meta.appendChild(editedTag);
-            }
-            editedTag.textContent = `edited ${timeStr}`;
-            editedTag.title = now.toISOString();
+        // Find or create message-footer
+        let messageFooter = messageElement.querySelector('.message-footer');
+        if (!messageFooter) {
+            messageFooter = document.createElement('div');
+            messageFooter.className = 'message-footer';
+            messageElement.appendChild(messageFooter);
         }
+
+        // Find or create message-meta
+        let meta = messageFooter.querySelector('.message-meta');
+        if (!meta) {
+            meta = document.createElement('div');
+            meta.className = 'message-meta';
+            messageFooter.insertBefore(meta, messageFooter.querySelector('.reactions-bar'));
+        }
+
+        let editedTag = meta.querySelector('.edited-tag');
+        if (!editedTag) {
+            editedTag = document.createElement('span');
+            editedTag.className = 'edited-tag';
+        }
+        editedTag.textContent = `edited ${timeStr}`;
+        editedTag.title = now.toISOString();
+        meta.appendChild(editedTag);
 
         socket.emit('edit message', { id: data.id, text: finalText, username: lockedUsername });
     });
@@ -648,7 +854,13 @@ function trimOldMessages() {
 function renderAttachment(file) {
     if (!file || !file.url) return '';
     if (file.type && file.type.startsWith('image/')) {
-        return `<div class="attachment-preview"><img src="${escapeHTML(file.url)}" alt="${escapeHTML(file.name)}" loading="lazy"></div>`;
+        return `<div class="attachment-preview image-preview">
+            <img src="${escapeHTML(file.url)}" alt="${escapeHTML(file.name)}" loading="lazy">
+            <div class="image-overlay">
+                <a href="${escapeHTML(file.url)}" download="${escapeHTML(file.name)}" class="image-ctrl download-icon" title="Download">↓</a>
+                <button class="image-ctrl view-icon" data-image-url="${escapeHTML(file.url)}" title="View">⬎</button>
+            </div>
+        </div>`;
     }
     if (file.type && file.type.startsWith('video/')) {
         return `<div class="attachment-preview"><video src="${escapeHTML(file.url)}" controls preload="metadata" style="max-width:100%;max-height:300px;border-radius:6px;display:block;"></video></div>`;
@@ -715,7 +927,11 @@ function renderMessage(data, options = {}) {
 
   let contentHTML = '';
   const codeText = getCodeFenceContent(data.text);
-  if (data.isCode || codeText !== null) {
+  if (data.isDice) {
+    const diceEmojis = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    const diceEmoji = diceEmojis[data.diceResult - 1] || '⚀';
+    contentHTML += `<div class="dice-message"><div class="dice-roll" data-result="${data.diceResult || 1}">${diceEmoji}</div><div class="dice-result">${escapeHTML(data.text)}</div></div>`;
+  } else if (data.isCode || codeText !== null) {
     contentHTML += `<div class="code-block-wrapper"><pre><code>${escapeHTML(codeText ?? data.text)}</code></pre></div>`;
   } else if (data.text) {
     contentHTML += `<div class="message-text">${escapeHTML(data.text)}</div>`;
@@ -799,12 +1015,33 @@ socket.on('message edited', (data) => {
         if (!editedTag) {
             editedTag = document.createElement('span');
             editedTag.className = 'edited-tag';
-            const ts = meta.querySelector('.timestamp');
-            if (ts) meta.insertBefore(editedTag, ts);
-            else meta.appendChild(editedTag);
+            meta.appendChild(editedTag);
         }
         editedTag.textContent = `edited ${formatTime(data.editedAt)}`;
         editedTag.title = data.editedAt || '';
+    } else {
+        // Create meta and footer if they don't exist
+        let messageFooter = msg.querySelector('.message-footer');
+        if (!messageFooter) {
+            messageFooter = document.createElement('div');
+            messageFooter.className = 'message-footer';
+            msg.appendChild(messageFooter);
+        }
+        
+        const newMeta = document.createElement('div');
+        newMeta.className = 'message-meta';
+        const editedTag = document.createElement('span');
+        editedTag.className = 'edited-tag';
+        editedTag.textContent = `edited ${formatTime(data.editedAt)}`;
+        editedTag.title = data.editedAt || '';
+        newMeta.appendChild(editedTag);
+        
+        const reactionsBar = messageFooter.querySelector('.reactions-bar');
+        if (reactionsBar) {
+            messageFooter.insertBefore(newMeta, reactionsBar);
+        } else {
+            messageFooter.appendChild(newMeta);
+        }
     }
 });
 
