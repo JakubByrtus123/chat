@@ -166,5 +166,21 @@
     "isCode": false,
     "reactions": {},
     "edited": false
+  },
+  {
+    "id": "1781168083453gp27u57sr",
+    "name": "User-2163",
+    "avatar": "data:image/svg+xml;charset=UTF-8,%0A%20%20%20%20%20%20%20%20%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2096%2096%22%3E%0A%20%20%20%20%20%20%20%20%20%20%20%20%3Crect%20width%3D%2296%22%20height%3D%2296%22%20rx%3D%2220%22%20fill%3D%22%230f172a%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%2276%22%20cy%3D%2220%22%20r%3D%2218%22%20fill%3D%22%23f43f5e%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%20%20%3Ccircle%20cx%3D%2218%22%20cy%3D%2278%22%20r%3D%2222%22%20fill%3D%22%23f43f5e%22%20opacity%3D%220.35%22%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%20%20%3Ctext%20x%3D%2250%25%22%20y%3D%2255%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20font-family%3D%22Arial%2C%20sans-serif%22%20font-size%3D%2234%22%20font-weight%3D%22900%22%20fill%3D%22%23fff%22%3EU%3C%2Ftext%3E%0A%20%20%20%20%20%20%20%20%3C%2Fsvg%3E",
+    "text": "",
+    "time": "11. 6. 10:54",
+    "isCode": false,
+    "file": {
+      "name": "voice-1781168083446.webm",
+      "type": "audio/webm;codecs=opus",
+      "size": 111386,
+      "url": "/uploads/1781168083472-aztge8gc7.webm"
+    },
+    "reactions": {},
+    "edited": false
   }
 ]
