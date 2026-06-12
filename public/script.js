@@ -6,7 +6,7 @@ const messageInput = document.getElementById("message");
 const sendButton = document.getElementById("send");
 const typingIndicator = document.getElementById("typing-indicator");
 const emojiTrigger = document.getElementById('emoji-trigger');
-const diceTrigger = document.getElementById('dice-trigger');
+//const diceTrigger = document.getElementById('dice-trigger');
 const pickerContainer = document.getElementById('picker-container');
 // const darkModeToggle = document.getElementById('dark-mode-toggle');
 const soundToggle = document.getElementById('sound-toggle');
@@ -160,9 +160,9 @@ codeToggle.addEventListener('click', () => {
     messageInput.focus();
 });
 
-diceTrigger.addEventListener('click', () => {
-    rollDice();
-});
+// diceTrigger.addEventListener('click', () => {
+//     rollDice();
+// });
 
 /* ------------------------------------------------------------------
    File attachments
@@ -447,34 +447,34 @@ socket.on('typing', (data) => {
 });
 
 // Send message
-function rollDice() {
-    const now = Date.now();
-    if (now - lastSendTime < RATE_LIMIT_MS) {
-        return;
-    }
-    
-    lastSendTime = now;
-    const result = Math.floor(Math.random() * 6) + 1;
-    
-    const nowDate = new Date();
-    const timeString = nowDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    
-    const diceEmojis = ['🎲', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-    const diceText = `🎲 rolled a ${result}!`;
-    
-    const payload = {
-        id: Date.now() + Math.random().toString(36).substr(2, 9),
-        name: lockedUsername,
-        avatar: currentAvatar,
-        text: diceText,
-        time: timeString,
-        isDice: true,
-        diceResult: result,
-        isCode: false
-    };
-    
-    socket.emit("chat message", payload);
-}
+// function rollDice() {
+//     const now = Date.now();
+//     if (now - lastSendTime < RATE_LIMIT_MS) {
+//         return;
+//     }
+//     
+//     lastSendTime = now;
+//     const result = Math.floor(Math.random() * 6) + 1;
+//     
+//     const nowDate = new Date();
+//     const timeString = nowDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+//     
+//     const diceEmojis = ['🎲', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+//     const diceText = `🎲 rolled a ${result}!`;
+//     
+//     const payload = {
+//         id: Date.now() + Math.random().toString(36).substr(2, 9),
+//         name: lockedUsername,
+//         avatar: currentAvatar,
+//         text: diceText,
+//         time: timeString,
+//         isDice: true,
+//         diceResult: result,
+//         isCode: false
+//     };
+//     
+//     socket.emit("chat message", payload);
+// }
 
 function sendMessage() {
     const now = Date.now();
